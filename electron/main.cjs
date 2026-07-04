@@ -58,14 +58,35 @@ function ensureBackendStack() {
   });
 }
 
+// ---------------------------------------------------------------- スクリーンショット
+
+function captureScreenshot(win) {
+  win.webContents
+    .capturePage()
+    .then((image) => {
+      const dir = path.join(ROOT, "data", "screenshots");
+      fs.mkdirSync(dir, { recursive: true });
+      const d = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      const stamp =
+        `${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}` +
+        `-${pad(d.getHours())}${pad(d.getMinutes())}${pad(d.getSeconds())}`;
+      const file = path.join(dir, `${stamp}.png`);
+      fs.writeFileSync(file, image.toPNG());
+      console.log("screenshot saved:", file);
+    })
+    .catch((e) => console.error("screenshot failed:", e.message));
+}
+
 // ---------------------------------------------------------------- ウィンドウ
 
 function createWindow() {
-  // 1920x1080 を基本とし、画面 (作業領域) に収まらない場合は縮める
+  // コンテンツ部分 1920x1080 を基本とし、画面 (作業領域) に収まらない場合は縮める
   const workArea = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
     width: Math.min(1920, workArea.width),
     height: Math.min(1080, workArea.height),
+    useContentSize: true, // width/height を枠込みではなくコンテンツ基準にする
     backgroundColor: "#1b1d21",
     autoHideMenuBar: true,
     show: false, // 描画準備が整ってから表示 (白画面のちらつき防止)
@@ -77,6 +98,14 @@ function createWindow() {
     },
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());
+
+  // F12 でコンテンツ部分のスクリーンショットを data/screenshots に保存
+  mainWindow.webContents.on("before-input-event", (event, input) => {
+    if (input.type === "keyDown" && input.key === "F12") {
+      event.preventDefault();
+      captureScreenshot(mainWindow);
+    }
+  });
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);
