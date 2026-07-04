@@ -3,6 +3,7 @@ import { api, openEvents } from "./api";
 import type { Article, CategoryInfo, SseEvent } from "./types";
 import { CategoryColumn } from "./components/CategoryColumn";
 import { ChatPanel } from "./components/ChatPanel";
+import { GearIcon } from "./components/icons";
 import { DetailPanel } from "./components/DetailPanel";
 import { SettingsModal } from "./components/SettingsModal";
 import { StatusBar } from "./components/StatusBar";
@@ -267,9 +268,6 @@ export default function App() {
           >
             チャット
           </button>
-          <button className="btn-icon" onClick={() => setSettings({ editId: null })}>
-            設定
-          </button>
           <button className="btn-icon" onClick={onReloadConfig} title="categories.yaml を再読み込み">
             設定再読込
           </button>
@@ -287,9 +285,14 @@ export default function App() {
           >
             {showStatus ? "リソース非表示" : "リソース表示"}
           </button>
-          <span className={`conn ${connected ? "conn-ok" : "conn-ng"}`}>
-            {connected ? "接続中" : "再接続中..."}
-          </span>
+          <button
+            className="btn-icon icon-btn"
+            onClick={() => setSettings({ editId: null })}
+            title="設定"
+            aria-label="設定"
+          >
+            <GearIcon size={16} />
+          </button>
         </div>
       </header>
       <div className="filter-bar">
@@ -389,7 +392,7 @@ export default function App() {
           onChanged={() => void loadAll()}
         />
       )}
-      <StatusBar visible={showStatus} />
+      <StatusBar visible={showStatus} connected={connected} />
     </div>
   );
 }

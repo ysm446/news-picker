@@ -17,7 +17,7 @@ function Meter({ label, percent, text }: { label: string; percent: number; text:
   );
 }
 
-export function StatusBar({ visible }: { visible: boolean }) {
+export function StatusBar({ visible, connected }: { visible: boolean; connected: boolean }) {
   const [stats, setStats] = useState<SystemStats | null>(null);
   const [pending35b, setPending35b] = useState(false);
   const running35b = stats?.llama["35b"] ?? false;
@@ -54,6 +54,10 @@ export function StatusBar({ visible }: { visible: boolean }) {
   const gpu = stats?.gpus[0];
   return (
     <footer className="statusbar">
+      <span className="stat" title="バックエンドとの SSE 接続状態">
+        <span className={`lamp ${connected ? "lamp-ok" : "lamp-ng"}`} />
+        {connected ? "接続中" : "再接続中..."}
+      </span>
       {stats && (
         <span className="stat">
           <span
