@@ -78,3 +78,93 @@ def chat(
         "message": message,  # tool ループで会話履歴に積み直す用
         "usage": data.get("usage", {}),
     }
+
+
+def chat_stream(
+    messages: list[dict],
+    *,
+    base_url: str | None = None,
+    max_tokens: int = 2048,
+    timeout: float = 600.0,
+    enable_thinking: bool | None = None,
+    tools: list[dict] | None = None,
+    **sampling,
+):
+    """ストリーミング chat completion (深堀りチャット用)。
+
+    yield するイベント:
+      ("reasoning", str) — 思考のデルタ
+      ("content", str)   — 本文のデルタ
+      ("done", dict)     — 最後に1回。chat() と同じ形の集約結果
+    tool_calls はデルタを index ごとに組み立てて done に含める。
+    """
+    base_url = base_url or config.LLM_STANDARD_URL
+    payload: dict = {
+        "messages": messages,
+        "max_tokens": max_tokens,
+        "stream": True,
+        **DEFAULT_SAMPLING,
+        **sampling,
+    }
+    if enable_thinking is not None:
+        payload["chat_template_kwargs"] = {"enable_thinking": enable_thinking}
+    if tools is not None:
+        payload["tools"] = tools
+
+    req = urllib.request.Request(
+        f"{base_url}/v1/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers={"Content-Type": "application/json"},
+        method="POST",
+    )
+    content_parts: list[str] = []
+    reasoning_parts: list[str] = []
+    tool_calls: dict[int, dict] = {}
+
+    with urllib.request.urlopen(req, timeout=timeout) as res:
+        for raw in res:
+            line = raw.decode("utf-8").strip()
+            if not line.startswith("data: "):
+                continue
+            data = line[len("data: "):]
+            if data == "[DONE]":
+                break
+            chunk = json.loads(data)
+            choices = chunk.get("choices") or []
+            if not choices:
+                continue
+            delta = choices[0].get("delta") or {}
+            if delta.get("reasoning_content"):
+                reasoning_parts.append(delta["reasoning_content"])
+                yield ("reasoning", delta["reasoning_content"])
+            if delta.get("content"):
+                content_parts.append(delta["content"])
+                yield ("content", delta["content"])
+            for tc in delta.get("tool_calls") or []:
+                index = tc.get("index", 0)
+                entry = tool_calls.setdefault(
+                    index,
+                    {"id": None, "type": "function", "function": {"name": "", "arguments": ""}},
+                )
+                if tc.get("id"):
+                    entry["id"] = tc["id"]
+                function = tc.get("function") or {}
+                if function.get("name"):
+                    entry["function"]["name"] += function["name"]
+                if function.get("arguments"):
+                    entry["function"]["arguments"] += function["arguments"]
+
+    calls = [tool_calls[i] for i in sorted(tool_calls)] or None
+    content = "".join(content_parts)
+    message: dict = {"role": "assistant", "content": content or None}
+    if calls:
+        message["tool_calls"] = calls
+    yield (
+        "done",
+        {
+            "content": content,
+            "reasoning": "".join(reasoning_parts) or None,
+            "tool_calls": calls,
+            "message": message,
+        },
+    )

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { chatStream } from "../api";
 import type { ChatEvent, ChatTurn } from "../types";
+import { Markdown } from "./Markdown";
 
 interface Props {
   articleId: number | null;
@@ -15,13 +16,15 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
   const [activity, setActivity] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [currentModel, setCurrentModel] = useState<string | null>(null);
+  const [streamText, setStreamText] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const thinkingRef = useRef<string>("");
   const activityRef = useRef<string[]>([]);
+  const streamRef = useRef("");
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
-  }, [turns, activity]);
+  }, [turns, activity, streamText]);
 
   const send = useCallback(() => {
     const text = input.trim();
@@ -31,7 +34,9 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
     setBusy(true);
     thinkingRef.current = "";
     activityRef.current = [];
+    streamRef.current = "";
     setActivity([]);
+    setStreamText("");
 
     const history = [...turns, { role: "user" as const, content: text }];
     setTurns(history);
@@ -45,6 +50,12 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
             : `モデル: ${ev.model} (深堀りモデルはオフ)`;
         activityRef.current = [...activityRef.current, line];
         setActivity(activityRef.current);
+      } else if (ev.type === "chat.delta") {
+        streamRef.current += ev.text;
+        setStreamText(streamRef.current);
+      } else if (ev.type === "chat.turn_reset") {
+        streamRef.current = "";
+        setStreamText("");
       } else if (ev.type === "chat.thinking") {
         thinkingRef.current += (thinkingRef.current ? "\n\n" : "") + ev.text;
       } else if (ev.type === "chat.tool_call") {
@@ -71,6 +82,8 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
           },
         ]);
         setActivity([]);
+        streamRef.current = "";
+        setStreamText("");
       } else if (ev.type === "chat.error") {
         setError(ev.detail);
       } else if (ev.type === "chat.done") {
@@ -122,7 +135,9 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
                   <pre>{t.thinking}</pre>
                 </details>
               )}
-              <div className="chat-content">{t.content}</div>
+              <div className="chat-content">
+                <Markdown text={t.content} />
+              </div>
             </div>
           ),
         )}
@@ -132,10 +147,17 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
               {activity.map((a, j) => (
                 <div key={j}>{a}</div>
               ))}
-              <div className="chat-busy">
-                回答を生成中...{currentModel ? `(${currentModel})` : ""}
-              </div>
+              {!streamText && (
+                <div className="chat-busy">
+                  回答を生成中...{currentModel ? `(${currentModel})` : ""}
+                </div>
+              )}
             </div>
+            {streamText && (
+              <div className="chat-content">
+                <Markdown text={streamText} />
+              </div>
+            )}
           </div>
         )}
         {error && <p className="detail-error">{error}</p>}

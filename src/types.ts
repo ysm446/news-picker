@@ -73,6 +73,8 @@ export type SseEvent =
 
 export type ChatEvent =
   | { type: "chat.model"; model: string; role: "standard" | "deep" }
+  | { type: "chat.delta"; text: string }
+  | { type: "chat.turn_reset" }
   | { type: "chat.thinking"; text: string }
   | { type: "chat.tool_call"; name: string; args: { query?: string } }
   | { type: "chat.tool_result"; name: string; count: number | null }

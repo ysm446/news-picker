@@ -129,20 +129,31 @@ def run_chat(
         )
     msgs += messages
 
-    for _step in range(MAX_TOOL_STEPS):
-        result = llm.chat(
-            msgs,
-            base_url=base_url,
-            tools=TOOLS,
-            max_tokens=4096,
-            timeout=600,
-        )
-        if result["reasoning"]:
-            emit({"type": "chat.thinking", "text": result["reasoning"]})
+    def stream_turn(tools: list[dict] | None) -> dict:
+        """1ターンをストリーミング実行。本文デルタを chat.delta で配信する。"""
+        final: dict = {}
+        streamed = False
+        for kind, data in llm.chat_stream(
+            msgs, base_url=base_url, tools=tools, max_tokens=4096, timeout=600
+        ):
+            if kind == "content":
+                streamed = True
+                emit({"type": "chat.delta", "text": data})
+            elif kind == "done":
+                final = data
+        if final.get("reasoning"):
+            emit({"type": "chat.thinking", "text": final["reasoning"]})
+        # ツール呼び出しターンで本文が混ざっていた場合、描きかけを引っ込める
+        if streamed and final.get("tool_calls"):
+            emit({"type": "chat.turn_reset"})
+        return final
 
-        tool_calls = result["tool_calls"]
+    for _step in range(MAX_TOOL_STEPS):
+        result = stream_turn(TOOLS)
+
+        tool_calls = result.get("tool_calls")
         if not tool_calls:
-            emit({"type": "chat.answer", "content": result["content"]})
+            emit({"type": "chat.answer", "content": result.get("content", "")})
             return
 
         msgs.append(result["message"])  # assistant ターン (tool_calls 込み)
@@ -179,7 +190,5 @@ def run_chat(
             ),
         }
     )
-    result = llm.chat(msgs, base_url=base_url, max_tokens=4096, timeout=600)
-    if result["reasoning"]:
-        emit({"type": "chat.thinking", "text": result["reasoning"]})
-    emit({"type": "chat.answer", "content": result["content"]})
+    result = stream_turn(None)
+    emit({"type": "chat.answer", "content": result.get("content", "")})

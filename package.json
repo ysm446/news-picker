@@ -11,6 +11,8 @@
     "server": ".venv\\Scripts\\python -m uvicorn server.api:app --port 8100"
   },
   "dependencies": {
+    "dompurify": "^3.4.11",
+    "marked": "^18.0.5",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
