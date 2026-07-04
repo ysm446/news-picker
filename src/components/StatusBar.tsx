@@ -58,10 +58,13 @@ export function StatusBar({ visible, connected }: { visible: boolean; connected:
   const gpu = stats?.gpus[0];
   return (
     <footer className="statusbar">
-      <span className="stat" title="バックエンドとの SSE 接続状態">
-        <span className={`lamp ${connected ? "lamp-ok" : "lamp-ng"}`} />
-        {connected ? "接続中" : "再接続中..."}
-      </span>
+      {/* SSE 接続は正常が既定状態なので、切断時のみ表示する */}
+      {!connected && (
+        <span className="stat" title="バックエンドとの SSE 接続状態">
+          <span className="lamp lamp-ng" />
+          再接続中...
+        </span>
+      )}
       {stats && (
         <span className="stat">
           <span
