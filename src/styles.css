@@ -273,6 +273,19 @@ button {
   font-size: 11px;
 }
 
+.card-relevance {
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  color: var(--text-faint);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.card-relevance-low {
+  color: var(--danger);
+}
+
 .impact {
   font-size: 11px;
   padding: 0 6px;

@@ -89,6 +89,7 @@ def write_article_md(article: dict, vault_dir: Path | None = None) -> Path:
         "entities": _load_json_field(article.get("entities")),
         "impact": article.get("impact"),
         "tags": _load_json_field(article.get("tags")),
+        "relevance": article.get("relevance"),
     }
     front = yaml.safe_dump(meta, allow_unicode=True, sort_keys=False).strip()
 
@@ -148,6 +149,7 @@ def parse_article_md(path: Path) -> dict:
         "tags": json.dumps(meta["tags"], ensure_ascii=False) if meta.get("tags") else None,
         "body": body,
         "enriched_at": iso_to_epoch(meta.get("enriched_at")),
+        "relevance": meta.get("relevance"),
     }
 
 

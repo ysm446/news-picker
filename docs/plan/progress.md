@@ -1,7 +1,7 @@
 # progress — 進捗と注意点
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-05 00:37
+更新日時: 2026-07-05 00:58
 
 ## 現在の状態
 
@@ -67,6 +67,8 @@
 - **ステータスバー**(v0.1.0 後の追加): `server/system_stats.py`(lm-chat の routes/util.py を移植、psutil + pynvml)+ `GET /system/resources` + `src/components/StatusBar.tsx`。CPU / RAM / GPU / VRAM / 9B・35B 稼働ランプ、2秒ポーリング、表示状態は localStorage に永続化。スクリーンショットで表示確認済み
 
 - **カテゴリ管理 UI + 起動改善**(v0.1.0 後の追加): カテゴリ CRUD API(categories.yaml へ書き戻し + ワーカー再構築。ハンドラは async 必須 — 同期だとスレッドプール実行になり ensure_future が失敗する)、設定モーダル、起動時リトライ、ready-to-show、1920x1080
+
+- **キュレーション**: `server/curator.py`(9B バッチ採点、思考無効 + 構造化出力)+ `articles.relevance` 列 + SSE `article.curated` + UI「ノイズを隠す」(閾値30)。実測: 芸能・スポーツ・カテゴリ違いが10〜25点、業界の重要ニュースが85〜90点に正しく分離
 
 ## 未完了(改善候補)
 

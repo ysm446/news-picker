@@ -36,6 +36,7 @@ export interface Article {
   impact: string | null;
   tags: string[] | null;
   enriched_at: number | null;
+  relevance: number | null;
 }
 
 export interface Brief {
@@ -53,6 +54,7 @@ export type SseEvent =
     }
   | { type: "article.enriched"; article: Partial<Article> & { id: number } }
   | { type: "article.enrich_failed"; id: number; detail: string }
+  | { type: "article.curated"; scores: { id: number; relevance: number }[] }
   | { type: "article.status_changed"; id: number; status: Article["status"] }
   | { type: "category.brief_updated"; category: string; brief: string; updated_at: number };
 

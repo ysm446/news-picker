@@ -398,13 +398,40 @@ def rebuild_index() -> dict:
 
 @app.post("/admin/ingest-now")
 async def ingest_now(category: str) -> dict:
-    """開発用: ポーリングを待たずに1回取り込む。"""
+    """開発用: ポーリングを待たずに1回取り込む (採点込み)。"""
     worker = workers.get(category)
     if worker is None:
         raise HTTPException(404, f"unknown category {category}")
     inserted = await asyncio.to_thread(worker.ingest_once)
     worker.publish_new(inserted)
-    return {"category": category, "new": len(inserted)}
+    scores = await asyncio.to_thread(worker.curate_sync, inserted)
+    worker.publish_scores(scores)
+    return {"category": category, "new": len(inserted), "scored": len(scores)}
+
+
+@app.post("/admin/curate-now")
+async def curate_now(category: str) -> dict:
+    """未採点 (relevance IS NULL) の既存記事をまとめて採点する。"""
+    worker = workers.get(category)
+    if worker is None:
+        raise HTTPException(404, f"unknown category {category}")
+
+    def backfill() -> dict[int, int]:
+        conn = store.connect()
+        try:
+            rows = conn.execute(
+                """SELECT id, title, snippet FROM articles
+                   WHERE category = ? AND relevance IS NULL AND status != 'hidden'
+                   ORDER BY fetched_at DESC LIMIT 50""",
+                (category,),
+            ).fetchall()
+        finally:
+            conn.close()
+        return worker.curate_sync([dict(r) for r in rows])
+
+    scores = await asyncio.to_thread(backfill)
+    worker.publish_scores(scores)
+    return {"category": category, "scored": len(scores)}
 
 
 @app.post("/admin/brief-now")

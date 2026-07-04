@@ -14,15 +14,31 @@ interface Filters {
   impact: string;
   entity: string;
   savedOnly: boolean;
+  hideNoise: boolean;
 }
 
-const NO_FILTERS: Filters = { range: "all", impact: "", entity: "", savedOnly: false };
+const NOISE_THRESHOLD = 30; // これ未満の relevance は「ノイズ」扱い
+
+const NO_FILTERS: Filters = {
+  range: "all",
+  impact: "",
+  entity: "",
+  savedOnly: false,
+  hideNoise: true,
+};
 
 function applyFilters(list: Article[], f: Filters): Article[] {
-  if (f === NO_FILTERS) return list;
   const cutoff = f.range === "all" ? 0 : Date.now() / 1000 - Number(f.range) * 86400;
   const q = f.entity.trim().toLowerCase();
   return list.filter((a) => {
+    if (
+      f.hideNoise &&
+      a.relevance !== null &&
+      a.relevance < NOISE_THRESHOLD &&
+      a.status !== "saved"
+    ) {
+      return false;
+    }
     if (f.savedOnly && a.status !== "saved") return false;
     if (f.impact && a.impact !== f.impact) return false;
     if (a.fetched_at < cutoff) return false;
@@ -119,6 +135,7 @@ export default function App() {
         impact: null,
         tags: null,
         enriched_at: null,
+        relevance: null,
       };
       setArticles((prev) => {
         const list = prev[ev.category] ?? [];
@@ -147,6 +164,17 @@ export default function App() {
       setSelected((prev) => (prev && prev.id === ev.article.id ? { ...prev, ...ev.article } : prev));
     } else if (ev.type === "article.enrich_failed") {
       if (selectedIdRef.current === ev.id) setDetailError(ev.detail);
+    } else if (ev.type === "article.curated") {
+      const byId = new Map(ev.scores.map((s) => [s.id, s.relevance]));
+      setArticles((prev) => {
+        const next: ArticlesByCat = {};
+        for (const [cat, list] of Object.entries(prev)) {
+          next[cat] = list.map((a) =>
+            byId.has(a.id) ? { ...a, relevance: byId.get(a.id)! } : a,
+          );
+        }
+        return next;
+      });
     } else if (ev.type === "category.brief_updated") {
       setBriefs((prev) => ({ ...prev, [ev.category]: ev.brief }));
     }
@@ -265,6 +293,14 @@ export default function App() {
             onChange={(e) => setFilters({ ...filters, savedOnly: e.target.checked })}
           />
           保存のみ
+        </label>
+        <label className="filter-check" title={`関連度 ${NOISE_THRESHOLD} 未満の記事を隠す (9B が自動採点)`}>
+          <input
+            type="checkbox"
+            checked={filters.hideNoise}
+            onChange={(e) => setFilters({ ...filters, hideNoise: e.target.checked })}
+          />
+          ノイズを隠す
         </label>
         {filters !== NO_FILTERS && (
           <button className="btn-icon" onClick={() => setFilters(NO_FILTERS)}>

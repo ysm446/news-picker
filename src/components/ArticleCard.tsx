@@ -23,6 +23,14 @@ export function ArticleCard({ article, onSave, onHide, onOpen }: Props) {
       <div className="card-meta">
         <span className="card-source">{article.source ?? "-"}</span>
         <span className="card-time">{relativeTime(article.fetched_at)}</span>
+        {article.relevance !== null && (
+          <span
+            className={`card-relevance${article.relevance < 50 ? " card-relevance-low" : ""}`}
+            title={`関連度 ${article.relevance} (9B 自動採点)`}
+          >
+            {article.relevance}
+          </span>
+        )}
         {article.impact && <span className={`impact impact-${article.impact}`}>{article.impact}</span>}
         {article.status === "saved" && <span className="badge-saved">保存済み</span>}
       </div>

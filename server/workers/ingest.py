@@ -12,7 +12,7 @@ import logging
 import random
 from datetime import datetime
 
-from .. import config, store
+from .. import config, curator, llm, store
 from ..search_web import search_news
 from ..sse import EventBus
 
@@ -56,6 +56,7 @@ class IngestWorker:
                         "id": row["id"],
                         "title": row["title"],
                         "source": row["source"],
+                        "snippet": row["snippet"],
                         "fetched_at": row["fetched_at"],
                     }
                 )
@@ -73,6 +74,31 @@ class IngestWorker:
                 {"type": "article.new", "category": self.category.id, "article": article}
             )
 
+    def curate_sync(self, inserted: list[dict]) -> dict[int, int]:
+        """新着バッチを 9B で採点して DB に反映する (タイトル配信の後追い)。"""
+        if not inserted or not llm.health(config.LLM_9B_URL):
+            return {}
+        scores = curator.score_articles(self.category, inserted)
+        if scores:
+            conn = store.connect()
+            try:
+                store.set_relevance(conn, scores)
+            finally:
+                conn.close()
+        return scores
+
+    def publish_scores(self, scores: dict[int, int]) -> None:
+        if scores:
+            self.bus.publish(
+                {
+                    "type": "article.curated",
+                    "scores": [
+                        {"id": article_id, "relevance": score}
+                        for article_id, score in scores.items()
+                    ],
+                }
+            )
+
     async def run(self) -> None:
         """常駐ループ。個々の失敗はログして次周期で再試行する。"""
         # 起動直後の全カテゴリ同時叩きを避ける初期ジッタ
@@ -80,7 +106,9 @@ class IngestWorker:
         while True:
             try:
                 inserted = await asyncio.to_thread(self.ingest_once)
-                self.publish_new(inserted)
+                self.publish_new(inserted)  # タイトルは採点を待たず即配信
+                scores = await asyncio.to_thread(self.curate_sync, inserted)
+                self.publish_scores(scores)
             except Exception:  # noqa: BLE001
                 log.exception("ingest[%s] failed", self.category.id)
             delay = self.category.poll_interval_sec + random.uniform(

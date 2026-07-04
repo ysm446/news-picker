@@ -77,7 +77,7 @@ categories:
   - OpenAI 発表
   - Anthropic Claude
   - Google Gemini AI
-  - AI 規制 政策
+  - AI 規制
   - AI スタートアップ 資金調達
   poll_interval_sec: 600
   jitter_sec: 90
@@ -87,6 +87,6 @@ categories:
   max_window: 40
   summary_prompt: 'あなたはAI業界ウォッチャー。以下の直近記事から、
 
-    新モデル・主要企業の動向・規制・研究の重要な動きを3〜5行で要約せよ。
+    新モデル・主要企業の動向・研究の重要な動きを3〜5行で要約せよ。
 
     '

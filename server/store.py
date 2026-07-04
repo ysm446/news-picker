@@ -41,7 +41,8 @@ CREATE TABLE IF NOT EXISTS articles (
   tags         TEXT,
   body         TEXT,
   md_path      TEXT,
-  enriched_at  INTEGER
+  enriched_at  INTEGER,
+  relevance    INTEGER                     -- キュレーション採点 0-100 (NULL = 未採点)
 );
 CREATE INDEX IF NOT EXISTS idx_articles_cat_status
   ON articles(category, status, fetched_at DESC);
@@ -85,6 +86,11 @@ def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
     conn.execute("PRAGMA foreign_keys = ON")
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(_SCHEMA)
+    # 既存 DB へのカラム追加 (冪等)
+    try:
+        conn.execute("ALTER TABLE articles ADD COLUMN relevance INTEGER")
+    except sqlite3.OperationalError:
+        pass
     return conn
 
 
@@ -175,6 +181,14 @@ def hide_article(conn: sqlite3.Connection, article_id: int) -> str | None:
         conn.execute("UPDATE articles SET status = 'hidden' WHERE id = ?", (article_id,))
         add_tombstone(conn, row["url_hash"], "deleted", commit=False)
     return row["url_hash"]
+
+
+def set_relevance(conn: sqlite3.Connection, scores: dict[int, int]) -> None:
+    with conn:
+        conn.executemany(
+            "UPDATE articles SET relevance = ? WHERE id = ?",
+            [(score, article_id) for article_id, score in scores.items()],
+        )
 
 
 def add_tombstone(
@@ -288,6 +302,7 @@ def insert_full_article(conn: sqlite3.Connection, row: dict) -> None:
         "id", "category", "title", "url", "url_hash", "source", "snippet",
         "published_at", "fetched_at", "status", "summary", "key_points",
         "entities", "impact", "tags", "body", "md_path", "enriched_at",
+        "relevance",
     )
     values = [row.get(c) for c in cols]
     with conn:
