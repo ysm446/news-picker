@@ -6,9 +6,10 @@ interface Props {
   loading: boolean;
   error: string | null;
   onClose: () => void;
+  onDeepDive: (article: Article) => void;
 }
 
-export function DetailPanel({ article, loading, error, onClose }: Props) {
+export function DetailPanel({ article, loading, error, onClose, onDeepDive }: Props) {
   if (!article) return null;
   const enriched = article.enriched_at != null;
   return (
@@ -84,7 +85,7 @@ export function DetailPanel({ article, loading, error, onClose }: Props) {
         </section>
       </div>
       <footer className="detail-footer">
-        <button className="btn-primary" disabled title="フェーズ6で実装">
+        <button className="btn-primary" onClick={() => onDeepDive(article)}>
           このニュースを深堀り
         </button>
       </footer>

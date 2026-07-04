@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, openEvents } from "./api";
 import type { Article, CategoryInfo, SseEvent } from "./types";
 import { CategoryColumn } from "./components/CategoryColumn";
+import { ChatPanel } from "./components/ChatPanel";
 import { DetailPanel } from "./components/DetailPanel";
 
 type ArticlesByCat = Record<string, Article[]>;
@@ -14,6 +15,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null);
   const [selected, setSelected] = useState<Article | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
+  const [chat, setChat] = useState<{ articleId: number | null; title: string | null } | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const selectedIdRef = useRef<number | null>(null);
   selectedIdRef.current = selected?.id ?? null;
@@ -127,11 +129,21 @@ export default function App() {
     setDetailError(null);
   }, []);
 
+  const onDeepDive = useCallback((article: Article) => {
+    setChat({ articleId: article.id, title: article.title });
+  }, []);
+
   return (
     <div className="app">
       <header className="topbar">
         <h1 className="app-title">news-picker</h1>
         <div className="topbar-right">
+          <button
+            className="btn-icon"
+            onClick={() => setChat({ articleId: null, title: null })}
+          >
+            チャット
+          </button>
           <span className={`conn ${connected ? "conn-ok" : "conn-ng"}`}>
             {connected ? "接続中" : "再接続中..."}
           </span>
@@ -156,12 +168,22 @@ export default function App() {
           />
         ))}
       </main>
-      <DetailPanel
-        article={selected}
-        loading={selected != null && selected.enriched_at == null}
-        error={detailError}
-        onClose={onCloseDetail}
-      />
+      {chat === null && (
+        <DetailPanel
+          article={selected}
+          loading={selected != null && selected.enriched_at == null}
+          error={detailError}
+          onClose={onCloseDetail}
+          onDeepDive={onDeepDive}
+        />
+      )}
+      {chat !== null && (
+        <ChatPanel
+          articleId={chat.articleId}
+          articleTitle={chat.title}
+          onClose={() => setChat(null)}
+        />
+      )}
     </div>
   );
 }

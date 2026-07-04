@@ -34,6 +34,7 @@ def chat(
     timeout: float = 300.0,
     response_json_schema: dict | None = None,
     enable_thinking: bool | None = None,
+    tools: list[dict] | None = None,
     **sampling,
 ) -> dict:
     """非ストリームの chat completion。{"content", "reasoning", "usage"} を返す。
@@ -52,6 +53,8 @@ def chat(
     }
     if enable_thinking is not None:
         payload["chat_template_kwargs"] = {"enable_thinking": enable_thinking}
+    if tools is not None:
+        payload["tools"] = tools
     if response_json_schema is not None:
         payload["response_format"] = {
             "type": "json_schema",
@@ -71,5 +74,7 @@ def chat(
     return {
         "content": message.get("content") or "",
         "reasoning": message.get("reasoning_content"),
+        "tool_calls": message.get("tool_calls"),
+        "message": message,  # tool ループで会話履歴に積み直す用
         "usage": data.get("usage", {}),
     }

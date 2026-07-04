@@ -1,4 +1,4 @@
-import type { Article, Brief, CategoryInfo, SseEvent } from "./types";
+import type { Article, Brief, CategoryInfo, ChatEvent, SseEvent } from "./types";
 
 export const API_BASE = "http://127.0.0.1:8100";
 
@@ -31,6 +31,43 @@ export function openEvents(onEvent: (ev: SseEvent) => void, onStateChange: (ok: 
     }
   };
   return es;
+}
+
+/** POST /chat の SSE ストリームを読み、イベントごとにコールバックする。 */
+export async function chatStream(
+  body: { messages: { role: string; content: string }[]; article_id?: number | null },
+  onEvent: (ev: ChatEvent) => void,
+  signal?: AbortSignal,
+): Promise<void> {
+  const res = await fetch(`${API_BASE}/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+    signal,
+  });
+  if (!res.ok || !res.body) throw new Error(`${res.status} /chat`);
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buf = "";
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buf += decoder.decode(value, { stream: true });
+    let idx;
+    while ((idx = buf.indexOf("\n\n")) >= 0) {
+      const frame = buf.slice(0, idx);
+      buf = buf.slice(idx + 2);
+      for (const line of frame.split("\n")) {
+        if (line.startsWith("data: ")) {
+          try {
+            onEvent(JSON.parse(line.slice(6)) as ChatEvent);
+          } catch {
+            // 不正なフレームは無視
+          }
+        }
+      }
+    }
+  }
 }
 
 export function relativeTime(epoch: number): string {

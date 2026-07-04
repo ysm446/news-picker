@@ -16,8 +16,10 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from pydantic import BaseModel
 
 from . import config, store, vault
+from .chat_agent import run_chat
 from .sse import EventBus, format_sse
 from .workers.brief import BriefWorker
 from .workers.cleanup import CleanupWorker
@@ -199,6 +201,69 @@ def hide_article(article_id: int) -> dict:
     vault.append_tombstone(url_hash, "deleted")  # rebuild 後も復活しないよう vault 側にも記録
     bus.publish({"type": "article.status_changed", "id": article_id, "status": "hidden"})
     return {"id": article_id, "status": "hidden"}
+
+
+# ---------------------------------------------------------------- チャット
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+
+class ChatRequest(BaseModel):
+    messages: list[ChatMessage]
+    article_id: int | None = None
+
+
+def _load_article_context(article_id: int) -> str | None:
+    """深堀り対象の記事 MD を初期コンテキストとして読む (spec §8)。"""
+    conn = store.connect()
+    try:
+        row = store.get_article(conn, article_id)
+    finally:
+        conn.close()
+    if row is None:
+        return None
+    if row["md_path"]:
+        md = config.VAULT_DIR / row["md_path"]
+        if md.exists():
+            return md.read_text(encoding="utf-8")
+    # 未 enrich ならタイトル + スニペットだけでも渡す
+    return f"# {row['title']}\n\n{row['snippet'] or ''}\n\n出典: {row['url']}"
+
+
+@app.post("/chat")
+async def chat(req: ChatRequest) -> StreamingResponse:
+    """深堀りチャット (35B エージェンティック)。SSE でステージイベントを流す。"""
+    article_md = _load_article_context(req.article_id) if req.article_id else None
+    messages = [m.model_dump() for m in req.messages]
+
+    loop = asyncio.get_running_loop()
+    queue: asyncio.Queue = asyncio.Queue()
+
+    def emit(event: dict) -> None:
+        loop.call_soon_threadsafe(queue.put_nowait, event)
+
+    def worker() -> None:
+        try:
+            run_chat(messages, article_md, emit)
+        except Exception as e:  # noqa: BLE001
+            emit({"type": "chat.error", "detail": str(e)[:300]})
+        finally:
+            emit({"type": "chat.done"})
+
+    async def gen():
+        task = asyncio.create_task(asyncio.to_thread(worker))
+        try:
+            while True:
+                event = await queue.get()
+                yield format_sse(event)
+                if event["type"] == "chat.done":
+                    break
+        finally:
+            await task
+
+    return StreamingResponse(gen(), media_type="text/event-stream")
 
 
 # ---------------------------------------------------------------- SSE

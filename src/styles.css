@@ -442,6 +442,136 @@ button {
   cursor: default;
 }
 
+/* ---------------- チャットパネル ---------------- */
+
+.chat-panel {
+  position: fixed;
+  top: 44px;
+  right: 0;
+  bottom: 0;
+  width: 480px;
+  display: flex;
+  flex-direction: column;
+  background: var(--panel);
+  border-left: 1px solid var(--border);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
+  animation: slide-in 0.15s ease-out;
+  z-index: 20;
+}
+
+.chat-context {
+  font-size: 13px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  margin-right: 8px;
+}
+
+.chat-messages {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.chat-hint {
+  font-size: 13px;
+  color: var(--text-sub);
+  line-height: 1.6;
+}
+
+.chat-user {
+  align-self: flex-end;
+  max-width: 85%;
+  padding: 8px 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  background: color-mix(in srgb, var(--accent) 18%, var(--panel));
+  border: 1px solid color-mix(in srgb, var(--accent) 35%, var(--border));
+  border-radius: 10px;
+  white-space: pre-wrap;
+}
+
+.chat-assistant {
+  max-width: 100%;
+}
+
+.chat-content {
+  font-size: 14px;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+.chat-activity {
+  font-family: Consolas, monospace;
+  font-size: 11.5px;
+  color: var(--text-faint);
+  margin-bottom: 6px;
+}
+
+.chat-busy {
+  color: var(--accent);
+}
+
+.chat-thinking {
+  margin-bottom: 6px;
+}
+
+.chat-thinking summary {
+  font-size: 12px;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.chat-thinking pre {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-sub);
+  white-space: pre-wrap;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 8px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.chat-input-row {
+  display: flex;
+  gap: 8px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.chat-input {
+  flex: 1;
+  resize: none;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 7px 10px;
+}
+
+.chat-input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.chat-send {
+  width: 64px;
+  align-self: flex-end;
+  height: 34px;
+}
+
 /* ---------------- スクロールバー ---------------- */
 
 ::-webkit-scrollbar {

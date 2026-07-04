@@ -47,3 +47,18 @@ export type SseEvent =
   | { type: "article.enrich_failed"; id: number; detail: string }
   | { type: "article.status_changed"; id: number; status: Article["status"] }
   | { type: "category.brief_updated"; category: string; brief: string; updated_at: number };
+
+export type ChatEvent =
+  | { type: "chat.thinking"; text: string }
+  | { type: "chat.tool_call"; name: string; args: { query?: string } }
+  | { type: "chat.tool_result"; name: string; count: number | null }
+  | { type: "chat.answer"; content: string }
+  | { type: "chat.error"; detail: string }
+  | { type: "chat.done" };
+
+export interface ChatTurn {
+  role: "user" | "assistant";
+  content: string;
+  thinking?: string;
+  activity?: string[];
+}
