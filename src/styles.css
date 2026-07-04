@@ -840,6 +840,7 @@ button {
 }
 
 .form-row input,
+.form-row select,
 .form-row textarea {
   font-family: inherit;
   font-size: 13px;

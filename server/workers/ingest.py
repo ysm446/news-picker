@@ -76,7 +76,7 @@ class IngestWorker:
 
     def curate_sync(self, inserted: list[dict]) -> dict[int, dict]:
         """新着バッチを 9B で採点 (+設定オン時は日本語訳) して DB に反映する。"""
-        if not inserted or not llm.health(config.LLM_9B_URL):
+        if not inserted or not llm.health(config.LLM_STANDARD_URL):
             return {}
         translate = bool(settings_store.get().get("translate_titles"))
         results = curator.score_articles(self.category, inserted, translate=translate)

@@ -9,9 +9,12 @@ from . import config
 from .atomic_io import atomic_write_json, read_json
 
 DEFAULTS: dict = {
-    "translate_titles": False,              # 見出しを日本語訳 (9B、キュレーション採点に相乗り)
+    "translate_titles": False,              # 見出しを日本語訳 (常駐モデル、キュレーション採点に相乗り)
     "noise_threshold": 30,                  # これ未満の relevance をノイズ扱い (UI フィルタ)
     "retention_days": config.RETENTION_DAYS,  # 自動整理の保持日数
+    # 使用モデル (models/ からの相対パス)。役割: standard=常駐 / deep=深堀りチャット
+    "model_standard": "Ornith-1.0-9B-GGUF/ornith-1.0-9b-Q4_K_M.gguf",
+    "model_deep": "Ornith-1.0-35B-GGUF/ornith-1.0-35b-Q4_K_M.gguf",
 }
 
 

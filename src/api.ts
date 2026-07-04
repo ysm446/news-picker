@@ -5,6 +5,7 @@ import type {
   CategoryConfig,
   CategoryInfo,
   ChatEvent,
+  ModelInfo,
   SseEvent,
   SystemStats,
 } from "./types";
@@ -41,8 +42,9 @@ export const api = {
     }),
   deleteCategory: (id: string) =>
     fetchJson(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
-  llama35b: (action: "start" | "stop") =>
-    fetchJson<{ status: string }>(`/llama/35b/${action}`, { method: "POST" }),
+  llamaControl: (role: "standard" | "deep", action: "start" | "stop" | "restart") =>
+    fetchJson<{ status: string }>(`/llama/${role}/${action}`, { method: "POST" }),
+  getModels: () => fetchJson<ModelInfo[]>("/models"),
   getSettings: () => fetchJson<AppSettings>("/settings"),
   putSettings: (s: Partial<AppSettings>) =>
     fetchJson<AppSettings>("/settings", {

@@ -23,8 +23,18 @@ CATEGORIES_PATH = DATA_DIR / "categories.yaml"
 _CATEGORIES_EXAMPLE = ROOT / "config" / "categories.example.yaml"
 _CATEGORIES_LEGACY = ROOT / "config" / "categories.yaml"  # 旧配置からの移行用
 
-LLM_9B_URL = os.environ.get("NEWS_PICKER_LLM_9B", "http://127.0.0.1:8081")
-LLM_35B_URL = os.environ.get("NEWS_PICKER_LLM_35B", "http://127.0.0.1:8082")
+# LLM は役割ベースの2ポート構成 (特定モデルに依存しない):
+# - standard: 常駐。詳細生成・カテゴリ要約・キュレーション・チャット代行
+# - deep:     深堀りチャット用。手動ロード/アンロード
+LLM_STANDARD_URL = os.environ.get(
+    "NEWS_PICKER_LLM_STANDARD",
+    os.environ.get("NEWS_PICKER_LLM_9B", "http://127.0.0.1:8081"),
+)
+LLM_DEEP_URL = os.environ.get(
+    "NEWS_PICKER_LLM_DEEP",
+    os.environ.get("NEWS_PICKER_LLM_35B", "http://127.0.0.1:8082"),
+)
+MODELS_DIR = ROOT / "models"
 
 # 自動整理: new/seen のままこの日数を超えた記事をパージ (saved/hidden は対象外)
 RETENTION_DAYS = int(os.environ.get("NEWS_PICKER_RETENTION_DAYS", "14"))

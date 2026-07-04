@@ -14,6 +14,7 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
   const [busy, setBusy] = useState(false);
   const [activity, setActivity] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [currentModel, setCurrentModel] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const thinkingRef = useRef<string>("");
   const activityRef = useRef<string[]>([]);
@@ -37,7 +38,11 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
 
     const onEvent = (ev: ChatEvent) => {
       if (ev.type === "chat.model") {
-        const line = ev.model === "35b" ? "モデル: 35B" : "モデル: 9B (35B はオフ)";
+        setCurrentModel(ev.model);
+        const line =
+          ev.role === "deep"
+            ? `モデル: ${ev.model}`
+            : `モデル: ${ev.model} (深堀りモデルはオフ)`;
         activityRef.current = [...activityRef.current, line];
         setActivity(activityRef.current);
       } else if (ev.type === "chat.thinking") {
@@ -95,7 +100,7 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
       <div className="chat-messages" ref={scrollRef}>
         {turns.length === 0 && (
           <p className="chat-hint">
-            記事庫と Web を検索しながら 35B が回答します。
+            記事庫と Web を検索しながら回答します。
             {articleTitle ? "この記事について聞いてください。" : "何でも聞いてください。"}
           </p>
         )}
@@ -127,7 +132,9 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
               {activity.map((a, j) => (
                 <div key={j}>{a}</div>
               ))}
-              <div className="chat-busy">回答を生成中...(35B)</div>
+              <div className="chat-busy">
+                回答を生成中...{currentModel ? `(${currentModel})` : ""}
+              </div>
             </div>
           </div>
         )}

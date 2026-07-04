@@ -45,32 +45,9 @@ function spawnDetachedQuiet(exe, args, opts = {}) {
   return child;
 }
 
-function ensureLlama(port, modelPath, ctx, alias) {
-  const exe = path.join(ROOT, "runtime", "llama.cpp", "llama-server.exe");
-  if (!fs.existsSync(exe) || !fs.existsSync(modelPath)) return;
-  checkHttp(port, "/health", (ok) => {
-    if (ok) return;
-    spawnDetachedQuiet(exe, [
-      "-m", modelPath,
-      "--host", "127.0.0.1",
-      "--port", String(port),
-      "-c", String(ctx),
-      "-ngl", "999",
-      "--jinja",
-      "--alias", alias,
-    ]);
-  });
-}
-
 function ensureBackendStack() {
-  // 9B のみ自動起動。35B は VRAM を空けておくため、アプリ内の
-  // ステータスバーのトグルから手動でロードする
-  ensureLlama(
-    8081,
-    path.join(ROOT, "models", "Ornith-1.0-9B-GGUF", "ornith-1.0-9b-Q4_K_M.gguf"),
-    32768,
-    "ornith-9b",
-  );
+  // llama-server の起動はバックエンドが担う (常駐モデルは自動起動、
+  // 深堀りモデルはステータスバーのトグルから)。ここではバックエンドのみ確認
   checkHttp(8100, "/categories", (ok) => {
     if (ok) return;
     const py = path.join(ROOT, ".venv", "Scripts", "python.exe");

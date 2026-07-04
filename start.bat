@@ -27,10 +27,7 @@ if not exist "dist\index.html" (
   )
 )
 
-REM ---- 1. llama-server 9B only (35B is loaded on demand from the app) ------
-powershell -NoLogo -ExecutionPolicy Bypass -File scripts\start-llama-server.ps1 -Model 9b
-
-REM ---- 2. backend on :8100 (skip if already listening) ---------------------
+REM ---- 1. backend on :8100 (it auto-starts the standard llama model) -------
 powershell -NoLogo -Command "if (Get-NetTCPConnection -LocalPort 8100 -State Listen -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }"
 if %errorlevel%==0 (
   echo [news-picker] starting backend on :8100 ...
@@ -39,7 +36,7 @@ if %errorlevel%==0 (
   echo [news-picker] backend already running.
 )
 
-REM ---- 3. wait for backend health ------------------------------------------
+REM ---- 2. wait for backend health ------------------------------------------
 powershell -NoLogo -Command "$ok=$false; foreach($i in 1..60){ try { Invoke-RestMethod http://127.0.0.1:8100/categories -TimeoutSec 2 | Out-Null; $ok=$true; break } catch { Start-Sleep -Milliseconds 500 } }; if($ok){ exit 0 } else { exit 1 }"
 if not %errorlevel%==0 (
   echo ERROR: backend did not become healthy. Check the backend window.
@@ -47,7 +44,7 @@ if not %errorlevel%==0 (
   exit /b 1
 )
 
-REM ---- 4. app (ELECTRON_RUN_AS_NODE must be cleared; see CLAUDE.md) --------
+REM ---- 3. app (ELECTRON_RUN_AS_NODE must be cleared; see CLAUDE.md) --------
 set ELECTRON_RUN_AS_NODE=
 start "news-picker" node_modules\electron\dist\electron.exe .
 

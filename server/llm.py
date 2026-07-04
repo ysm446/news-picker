@@ -44,7 +44,7 @@ def chat(
     enable_thinking=False で思考を無効化する (高頻度の要約タスク用。
     Ornith は一言の回答にも思考 ~1000 トークンを使うため必須。plan.md 参照)。
     """
-    base_url = base_url or config.LLM_9B_URL
+    base_url = base_url or config.LLM_STANDARD_URL
     payload: dict = {
         "messages": messages,
         "max_tokens": max_tokens,

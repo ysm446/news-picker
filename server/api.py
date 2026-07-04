@@ -82,6 +82,8 @@ async def lifespan(app: FastAPI):
     _build_workers(categories)
     enrich_task = asyncio.ensure_future(enricher.run())
     _start_loops()
+    # 常駐モデルはバックエンドが自動起動する (start.bat / Electron は関与しない)
+    await asyncio.to_thread(llama_manager.ensure_standard)
     yield
     _stop_loops()
     enrich_task.cancel()
@@ -385,6 +387,8 @@ class SettingsModel(BaseModel):
     translate_titles: bool | None = None
     noise_threshold: int | None = Field(None, ge=0, le=100)
     retention_days: int | None = Field(None, ge=1, le=365)
+    model_standard: str | None = None
+    model_deep: str | None = None
 
 
 @app.get("/settings")
@@ -406,19 +410,42 @@ def system_resources() -> dict:
     return system_stats.get_resources()
 
 
-@app.post("/llama/35b/start")
-def llama_35b_start() -> dict:
-    """35B を手動ロード (ロード完了は /system/resources の 35b 死活で確認)。"""
+@app.get("/models")
+def list_models() -> list[dict]:
+    """models/ 配下の GGUF 一覧 (設定画面のモデル選択用)。"""
+    return llama_manager.list_models()
+
+
+def _validate_role(role: str) -> None:
+    if role not in llama_manager.ROLES:
+        raise HTTPException(404, f"unknown role {role} (standard | deep)")
+
+
+@app.post("/llama/{role}/start")
+def llama_start(role: str) -> dict:
+    """モデルを手動ロード (完了は /system/resources の死活で確認)。"""
+    _validate_role(role)
     try:
-        return llama_manager.start_35b()
+        return llama_manager.start(role)
     except RuntimeError as e:
         raise HTTPException(500, str(e)) from e
 
 
-@app.post("/llama/35b/stop")
-def llama_35b_stop() -> dict:
-    """35B を手動アンロードして VRAM を解放する。"""
-    return llama_manager.stop_35b()
+@app.post("/llama/{role}/stop")
+def llama_stop(role: str) -> dict:
+    """モデルを手動アンロードして VRAM を解放する。"""
+    _validate_role(role)
+    return llama_manager.stop(role)
+
+
+@app.post("/llama/{role}/restart")
+def llama_restart(role: str) -> dict:
+    """モデル差し替えの反映用 (deep は停止中なら停止のまま)。"""
+    _validate_role(role)
+    try:
+        return llama_manager.restart(role)
+    except RuntimeError as e:
+        raise HTTPException(500, str(e)) from e
 
 
 # ---------------------------------------------------------------- admin

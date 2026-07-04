@@ -5,7 +5,7 @@ CPU / RAM は psutil、GPU / VRAM は pynvml。どちらも無ければ 0 を返
 """
 from __future__ import annotations
 
-from . import config, llm
+from . import config, llama_manager, llm
 
 try:
     import psutil
@@ -54,7 +54,13 @@ def get_resources() -> dict:
         "ram_percent": vm.percent if vm else 0,
         "gpus": gpus,
         "llama": {
-            "9b": llm.health(config.LLM_9B_URL, timeout=0.5),
-            "35b": llm.health(config.LLM_35B_URL, timeout=0.5),
+            "standard": {
+                "running": llm.health(config.LLM_STANDARD_URL, timeout=0.5),
+                "name": llama_manager.display_name("standard"),
+            },
+            "deep": {
+                "running": llm.health(config.LLM_DEEP_URL, timeout=0.5),
+                "name": llama_manager.display_name("deep"),
+            },
         },
     }

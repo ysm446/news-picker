@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { AppSettings, CategoryConfig, CategoryInfo } from "../types";
+import type { AppSettings, CategoryConfig, CategoryInfo, ModelInfo } from "../types";
 
 interface Props {
   categories: CategoryInfo[];
@@ -34,10 +34,18 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
   const [error, setError] = useState<string | null>(null);
   const [tab, setTab] = useState<"categories" | "prefs">("categories");
   const [prefs, setPrefs] = useState<AppSettings | null>(null);
+  const [savedPrefs, setSavedPrefs] = useState<AppSettings | null>(null);
+  const [models, setModels] = useState<ModelInfo[]>([]);
   const [prefsSaved, setPrefsSaved] = useState(false);
 
   useEffect(() => {
-    api.getSettings().then(setPrefs).catch((e) => setError(String(e)));
+    api.getSettings()
+      .then((s) => {
+        setPrefs(s);
+        setSavedPrefs(s);
+      })
+      .catch((e) => setError(String(e)));
+    api.getModels().then(setModels).catch(console.error);
   }, []);
 
   const savePrefs = async () => {
@@ -45,7 +53,16 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
     setBusy(true);
     setError(null);
     try {
-      setPrefs(await api.putSettings(prefs));
+      const updated = await api.putSettings(prefs);
+      // モデルが変わった役割は再起動して反映 (deep は停止中なら停止のまま)
+      if (savedPrefs && updated.model_standard !== savedPrefs.model_standard) {
+        await api.llamaControl("standard", "restart");
+      }
+      if (savedPrefs && updated.model_deep !== savedPrefs.model_deep) {
+        await api.llamaControl("deep", "restart");
+      }
+      setPrefs(updated);
+      setSavedPrefs(updated);
       setPrefsSaved(true);
       setTimeout(() => setPrefsSaved(false), 2000);
       onChanged();
@@ -155,6 +172,32 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
                     />
                     ニュースの見出しを日本語訳する (9B が自動翻訳。新着から適用。
                     既存分は採点し直しで翻訳)
+                  </label>
+                  <label className="form-row">
+                    <span>常駐モデル (要約・採点・チャット代行。変更は保存時に再起動)</span>
+                    <select
+                      value={prefs.model_standard}
+                      onChange={(e) => setPrefs({ ...prefs, model_standard: e.target.value })}
+                    >
+                      {models.map((m) => (
+                        <option key={m.path} value={m.path}>
+                          {m.path} ({m.size_gb} GB)
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <label className="form-row">
+                    <span>深堀りモデル (チャット用。ステータスバーからロード/アンロード)</span>
+                    <select
+                      value={prefs.model_deep}
+                      onChange={(e) => setPrefs({ ...prefs, model_deep: e.target.value })}
+                    >
+                      {models.map((m) => (
+                        <option key={m.path} value={m.path}>
+                          {m.path} ({m.size_gb} GB)
+                        </option>
+                      ))}
+                    </select>
                   </label>
                   <div className="form-grid">
                     <label className="form-row">

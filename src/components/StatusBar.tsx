@@ -17,19 +17,23 @@ function Meter({ label, percent, text }: { label: string; percent: number; text:
   );
 }
 
+function shortName(name: string): string {
+  return name.length > 24 ? `${name.slice(0, 22)}…` : name;
+}
+
 export function StatusBar({ visible, connected }: { visible: boolean; connected: boolean }) {
   const [stats, setStats] = useState<SystemStats | null>(null);
-  const [pending35b, setPending35b] = useState(false);
-  const running35b = stats?.llama["35b"] ?? false;
+  const [pendingDeep, setPendingDeep] = useState(false);
+  const deepRunning = stats?.llama.deep.running ?? false;
 
   // トグル操作後、実際に状態が変わったら pending を解除
   useEffect(() => {
-    setPending35b(false);
-  }, [running35b]);
+    setPendingDeep(false);
+  }, [deepRunning]);
 
-  const toggle35b = () => {
-    setPending35b(true);
-    api.llama35b(running35b ? "stop" : "start").catch(() => setPending35b(false));
+  const toggleDeep = () => {
+    setPendingDeep(true);
+    api.llamaControl("deep", deepRunning ? "stop" : "start").catch(() => setPendingDeep(false));
   };
 
   useEffect(() => {
@@ -61,28 +65,28 @@ export function StatusBar({ visible, connected }: { visible: boolean; connected:
       {stats && (
         <span className="stat">
           <span
-            className={`lamp ${stats.llama["9b"] ? "lamp-ok" : "lamp-ng"}`}
-            title="9B (常駐: 要約・採点)"
+            className={`lamp ${stats.llama.standard.running ? "lamp-ok" : "lamp-ng"}`}
+            title={`常駐モデル: ${stats.llama.standard.name} (要約・採点・チャット代行)`}
           />
-          9B
+          {shortName(stats.llama.standard.name)}
           <button
             className="lamp-btn"
-            onClick={toggle35b}
-            disabled={pending35b}
+            onClick={toggleDeep}
+            disabled={pendingDeep}
             title={
-              pending35b
+              pendingDeep
                 ? "切り替え中... (ロードは数十秒かかります)"
-                : running35b
-                  ? "35B をアンロードして VRAM を解放"
-                  : "35B をロード (深堀りチャット用。オフ中は 9B が代行)"
+                : deepRunning
+                  ? `深堀りモデル ${stats.llama.deep.name} をアンロードして VRAM を解放`
+                  : `深堀りモデル ${stats.llama.deep.name} をロード (オフ中は常駐モデルが代行)`
             }
           >
             <span
               className={`lamp ${
-                pending35b ? "lamp-pending" : running35b ? "lamp-ok" : "lamp-off"
+                pendingDeep ? "lamp-pending" : deepRunning ? "lamp-ok" : "lamp-off"
               }`}
             />
-            35B
+            {shortName(stats.llama.deep.name)}
           </button>
         </span>
       )}

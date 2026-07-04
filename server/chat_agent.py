@@ -104,12 +104,20 @@ def run_chat(
     emit: Callable[[dict], None],
 ) -> None:
     """エージェンティックループ本体 (同期)。進捗と回答は emit で配信する。"""
-    # 35B が起動していればそちら、オフなら 9B が代行する
-    if llm.health(config.LLM_35B_URL, timeout=1.0):
-        base_url, model_label = config.LLM_35B_URL, "35b"
+    # 深堀りモデルが起動していればそちら、オフなら常駐モデルが代行する
+    from . import llama_manager  # 循環 import 回避
+
+    if llm.health(config.LLM_DEEP_URL, timeout=1.0):
+        base_url, role = config.LLM_DEEP_URL, "deep"
     else:
-        base_url, model_label = config.LLM_9B_URL, "9b"
-    emit({"type": "chat.model", "model": model_label})
+        base_url, role = config.LLM_STANDARD_URL, "standard"
+    emit(
+        {
+            "type": "chat.model",
+            "model": llama_manager.display_name(role),
+            "role": role,
+        }
+    )
 
     msgs: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
     if article_md:

@@ -45,6 +45,8 @@ export interface AppSettings {
   translate_titles: boolean;
   noise_threshold: number;
   retention_days: number;
+  model_standard: string;
+  model_deep: string;
 }
 
 export interface Brief {
@@ -70,7 +72,7 @@ export type SseEvent =
   | { type: "category.brief_updated"; category: string; brief: string; updated_at: number };
 
 export type ChatEvent =
-  | { type: "chat.model"; model: "9b" | "35b" }
+  | { type: "chat.model"; model: string; role: "standard" | "deep" }
   | { type: "chat.thinking"; text: string }
   | { type: "chat.tool_call"; name: string; args: { query?: string } }
   | { type: "chat.tool_result"; name: string; count: number | null }
@@ -93,11 +95,21 @@ export interface GpuStats {
   vram_percent: number;
 }
 
+export interface LlamaRoleStatus {
+  running: boolean;
+  name: string;
+}
+
 export interface SystemStats {
   cpu_percent: number;
   ram_used_gb: number;
   ram_total_gb: number;
   ram_percent: number;
   gpus: GpuStats[];
-  llama: { "9b": boolean; "35b": boolean };
+  llama: { standard: LlamaRoleStatus; deep: LlamaRoleStatus };
+}
+
+export interface ModelInfo {
+  path: string;
+  size_gb: number;
 }

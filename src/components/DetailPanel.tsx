@@ -31,7 +31,7 @@ export function DetailPanel({ article, loading, error, onClose, onDeepDive }: Pr
 
         {error && <p className="detail-error">生成に失敗しました: {error}</p>}
         {!enriched && loading && !error && (
-          <p className="detail-loading">要約を生成中...(9B)</p>
+          <p className="detail-loading">要約を生成中...</p>
         )}
 
         {enriched && (

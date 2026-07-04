@@ -79,7 +79,7 @@ class BriefWorker:
                         ),
                     },
                 ],
-                base_url=config.LLM_9B_URL,
+                base_url=config.LLM_STANDARD_URL,
                 enable_thinking=False,
                 max_tokens=600,
                 timeout=180,
