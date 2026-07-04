@@ -183,6 +183,11 @@ export default function App() {
         }
         return next;
       });
+      // 詳細パネルにも反映 (非表示になったら閉じる)
+      setSelected((prev) => {
+        if (!prev || prev.id !== ev.id) return prev;
+        return ev.status === "hidden" ? null : { ...prev, status: ev.status };
+      });
     } else if (ev.type === "article.enriched") {
       setArticles((prev) => {
         const next: ArticlesByCat = {};
@@ -202,6 +207,7 @@ export default function App() {
         }
         return next;
       });
+      setSelected((prev) => (prev && prev.id === ev.id ? { ...prev, rating: ev.rating } : prev));
     } else if (ev.type === "article.curated") {
       const byId = new Map(ev.scores.map((s) => [s.id, s]));
       setArticles((prev) => {
@@ -402,6 +408,9 @@ export default function App() {
           translate={prefs?.translate_titles ?? false}
           onClose={onCloseDetail}
           onDeepDive={onDeepDive}
+          onSave={onSave}
+          onLike={onLike}
+          onDismiss={onDismiss}
         />
       )}
       {chat !== null && (

@@ -1,5 +1,6 @@
 import type { Article } from "../types";
 import { relativeTime } from "../api";
+import { BookmarkIcon, ThumbsDownIcon, ThumbsUpIcon } from "./icons";
 
 interface Props {
   article: Article | null;
@@ -8,9 +9,14 @@ interface Props {
   translate: boolean;
   onClose: () => void;
   onDeepDive: (article: Article) => void;
+  onSave: (id: number) => void;
+  onLike: (id: number) => void;
+  onDismiss: (id: number) => void;
 }
 
-export function DetailPanel({ article, loading, error, translate, onClose, onDeepDive }: Props) {
+export function DetailPanel({
+  article, loading, error, translate, onClose, onDeepDive, onSave, onLike, onDismiss,
+}: Props) {
   if (!article) return null;
   const enriched = article.enriched_at != null;
   const translated = translate && article.title_ja && article.title_ja !== article.title;
@@ -18,9 +24,36 @@ export function DetailPanel({ article, loading, error, translate, onClose, onDee
     <aside className="detail-panel">
       <header className="detail-header">
         <span className="detail-time">{relativeTime(article.fetched_at)}</span>
-        <button className="btn-icon" onClick={onClose} aria-label="閉じる">
-          閉じる
-        </button>
+        <div className="detail-actions">
+          <button
+            className="btn-icon card-action"
+            aria-label="保存"
+            title="保存 (パージ対象外になる)"
+            disabled={article.status === "saved"}
+            onClick={() => onSave(article.id)}
+          >
+            <BookmarkIcon filled={article.status === "saved"} />
+          </button>
+          <button
+            className={`btn-icon card-action${article.rating === 1 ? " btn-liked" : ""}`}
+            aria-label="良い記事"
+            title="良い記事 (キュレーションの学習に使われる)"
+            onClick={() => onLike(article.id)}
+          >
+            <ThumbsUpIcon filled={article.rating === 1} />
+          </button>
+          <button
+            className="btn-icon card-action btn-danger"
+            aria-label="興味なし"
+            title="興味なし (非表示 + 学習の負例になる)"
+            onClick={() => onDismiss(article.id)}
+          >
+            <ThumbsDownIcon />
+          </button>
+          <button className="btn-icon detail-close" onClick={onClose} aria-label="閉じる">
+            閉じる
+          </button>
+        </div>
       </header>
       <div className="detail-body">
         <h2 className="detail-title">{translated ? article.title_ja : article.title}</h2>
