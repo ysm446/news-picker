@@ -1,7 +1,7 @@
 # progress — 進捗と注意点
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-05 00:06
+更新日時: 2026-07-05 00:26
 
 ## 現在の状態
 
@@ -63,6 +63,8 @@
   - トレイ常駐: ウィンドウを閉じてもトレイに残り取り込み継続。トレイメニューから開く/終了
   - config リロード: `POST /admin/reload-config` + UI「設定再読込」ボタン(ワーカー再構築)
   - Electron 自動起動: main.cjs がバックエンド(:8100)と llama-server(8081/8082)の未起動分だけを spawn し、終了時に自分が起動した分だけ kill。E2E 確認済み(Electron 単体起動 → 3コンポーネント全て up)
+
+- **ステータスバー**(v0.1.0 後の追加): `server/system_stats.py`(lm-chat の routes/util.py を移植、psutil + pynvml)+ `GET /system/resources` + `src/components/StatusBar.tsx`。CPU / RAM / GPU / VRAM / 9B・35B 稼働ランプ、2秒ポーリング、表示状態は localStorage に永続化。スクリーンショットで表示確認済み
 
 ## 未完了(改善候補)
 

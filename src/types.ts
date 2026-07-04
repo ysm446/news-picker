@@ -62,3 +62,20 @@ export interface ChatTurn {
   thinking?: string;
   activity?: string[];
 }
+
+export interface GpuStats {
+  name: string;
+  gpu_percent: number;
+  vram_used_gb: number;
+  vram_total_gb: number;
+  vram_percent: number;
+}
+
+export interface SystemStats {
+  cpu_percent: number;
+  ram_used_gb: number;
+  ram_total_gb: number;
+  ram_percent: number;
+  gpus: GpuStats[];
+  llama: { "9b": boolean; "35b": boolean };
+}

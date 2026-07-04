@@ -10,3 +10,7 @@ ddgs
 # フェーズ3 (詳細生成)
 trafilatura           # 記事本文の抽出
 sentence-transformers # Ruri v3-310m 埋め込み
+
+# ステータスバー (システムリソース表示)
+psutil
+pynvml

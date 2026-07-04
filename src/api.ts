@@ -1,4 +1,4 @@
-import type { Article, Brief, CategoryInfo, ChatEvent, SseEvent } from "./types";
+import type { Article, Brief, CategoryInfo, ChatEvent, SseEvent, SystemStats } from "./types";
 
 export const API_BASE = "http://127.0.0.1:8100";
 
@@ -17,6 +17,7 @@ export const api = {
   save: (id: number) => fetchJson(`/articles/${id}/save`, { method: "POST" }),
   hide: (id: number) => fetchJson(`/articles/${id}/hide`, { method: "POST" }),
   reloadConfig: () => fetchJson<{ categories: string[] }>("/admin/reload-config", { method: "POST" }),
+  systemResources: () => fetchJson<SystemStats>("/system/resources"),
 };
 
 /** SSE 購読。切断時は EventSource が自動再接続する。 */

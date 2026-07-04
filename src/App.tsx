@@ -4,6 +4,7 @@ import type { Article, CategoryInfo, SseEvent } from "./types";
 import { CategoryColumn } from "./components/CategoryColumn";
 import { ChatPanel } from "./components/ChatPanel";
 import { DetailPanel } from "./components/DetailPanel";
+import { StatusBar } from "./components/StatusBar";
 
 type ArticlesByCat = Record<string, Article[]>;
 
@@ -46,6 +47,16 @@ export default function App() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [chat, setChat] = useState<{ articleId: number | null; title: string | null } | null>(null);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [showStatus, setShowStatus] = useState(
+    () => localStorage.getItem("news-picker.statusbar") !== "off",
+  );
+
+  const toggleStatus = useCallback(() => {
+    setShowStatus((prev) => {
+      localStorage.setItem("news-picker.statusbar", prev ? "off" : "on");
+      return !prev;
+    });
+  }, []);
   const esRef = useRef<EventSource | null>(null);
   const selectedIdRef = useRef<number | null>(null);
   selectedIdRef.current = selected?.id ?? null;
@@ -173,7 +184,7 @@ export default function App() {
   const impactOptions = [...new Set(categories.flatMap((c) => c.impact_axis))];
 
   return (
-    <div className="app">
+    <div className={`app${showStatus ? " statusbar-on" : ""}`}>
       <header className="topbar">
         <h1 className="app-title">news-picker</h1>
         <div className="topbar-right">
@@ -185,6 +196,13 @@ export default function App() {
           </button>
           <button className="btn-icon" onClick={onReloadConfig} title="categories.yaml を再読み込み">
             設定再読込
+          </button>
+          <button
+            className="btn-icon"
+            onClick={toggleStatus}
+            title="システムリソースの表示/非表示"
+          >
+            {showStatus ? "リソース非表示" : "リソース表示"}
           </button>
           <span className={`conn ${connected ? "conn-ok" : "conn-ng"}`}>
             {connected ? "接続中" : "再接続中..."}
@@ -268,6 +286,7 @@ export default function App() {
           onClose={() => setChat(null)}
         />
       )}
+      <StatusBar visible={showStatus} />
     </div>
   );
 }

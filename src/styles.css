@@ -614,6 +614,64 @@ button {
   height: 34px;
 }
 
+/* ---------------- ステータスバー ---------------- */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  height: 26px;
+  padding: 0 14px;
+  font-family: Consolas, monospace;
+  font-size: 11.5px;
+  color: var(--text-sub);
+  background: var(--panel);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  z-index: 30;
+}
+
+.stat {
+  white-space: nowrap;
+}
+
+.stat-dim {
+  color: var(--text-faint);
+}
+
+.stat-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.lamp {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  margin-left: 8px;
+}
+
+.lamp:first-child {
+  margin-left: 0;
+}
+
+.lamp-ok {
+  background: var(--saved);
+}
+
+.lamp-ng {
+  background: var(--danger);
+}
+
+/* ステータスバー表示中はサイドパネルをバーの上端まで */
+.statusbar-on .detail-panel,
+.statusbar-on .chat-panel {
+  bottom: 26px;
+}
+
 /* ---------------- スクロールバー ---------------- */
 
 ::-webkit-scrollbar {

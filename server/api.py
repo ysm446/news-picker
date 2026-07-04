@@ -18,7 +18,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from . import config, store, vault
+from . import config, store, system_stats, vault
 from .chat_agent import run_chat
 from .sse import EventBus, format_sse
 from .workers.brief import BriefWorker
@@ -306,6 +306,14 @@ async def events() -> StreamingResponse:
             bus.unsubscribe(q)
 
     return StreamingResponse(gen(), media_type="text/event-stream")
+
+
+# ---------------------------------------------------------------- system
+
+@app.get("/system/resources")
+def system_resources() -> dict:
+    """ステータスバー用: CPU / RAM / GPU / VRAM / llama-server 死活。"""
+    return system_stats.get_resources()
 
 
 # ---------------------------------------------------------------- admin
