@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -15,7 +16,12 @@ ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = Path(os.environ.get("NEWS_PICKER_DATA_DIR", ROOT / "data"))
 VAULT_DIR = DATA_DIR / "news-vault"
 DB_PATH = DATA_DIR / "news.db"
-CATEGORIES_PATH = ROOT / "config" / "categories.yaml"
+
+# カテゴリ設定は個人データなので data/ 側に置く (git 管理外)。
+# リポジトリには雛形 (categories.example.yaml) のみを含め、初回起動時にコピーする
+CATEGORIES_PATH = DATA_DIR / "categories.yaml"
+_CATEGORIES_EXAMPLE = ROOT / "config" / "categories.example.yaml"
+_CATEGORIES_LEGACY = ROOT / "config" / "categories.yaml"  # 旧配置からの移行用
 
 LLM_9B_URL = os.environ.get("NEWS_PICKER_LLM_9B", "http://127.0.0.1:8081")
 LLM_35B_URL = os.environ.get("NEWS_PICKER_LLM_35B", "http://127.0.0.1:8082")
@@ -37,8 +43,19 @@ class Category:
     summary_prompt: str = ""
 
 
+def _ensure_categories_file(path: Path) -> None:
+    """data/categories.yaml が無ければ旧配置 → 雛形の順でコピーして作る。"""
+    if path.exists():
+        return
+    source = _CATEGORIES_LEGACY if _CATEGORIES_LEGACY.exists() else _CATEGORIES_EXAMPLE
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, path)
+
+
 def load_categories(path: Path | None = None) -> list[Category]:
-    path = path or CATEGORIES_PATH
+    if path is None:
+        path = CATEGORIES_PATH
+        _ensure_categories_file(path)
     with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f)
     return [Category(**entry) for entry in raw.get("categories", [])]

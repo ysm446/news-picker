@@ -15,10 +15,10 @@ export function DetailPanel({ article, loading, error, onClose, onDeepDive }: Pr
   return (
     <aside className="detail-panel">
       <header className="detail-header">
+        <span className="detail-time">{relativeTime(article.fetched_at)}</span>
         <button className="btn-icon" onClick={onClose} aria-label="閉じる">
           閉じる
         </button>
-        <span className="detail-time">{relativeTime(article.fetched_at)}</span>
       </header>
       <div className="detail-body">
         <h2 className="detail-title">{article.title}</h2>

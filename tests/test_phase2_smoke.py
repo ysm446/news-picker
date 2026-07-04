@@ -19,7 +19,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-PORT = 8100
+PORT = 8199  # 開発中の本番バックエンド (8100) と衝突しないテスト専用ポート
 BASE = f"http://127.0.0.1:{PORT}"
 
 
@@ -76,7 +76,8 @@ def main() -> None:
                 time.sleep(0.5)
         else:
             raise AssertionError("server did not start")
-        assert {c["id"] for c in cats} == {"semiconductor-stocks", "gpu", "local-llm"}
+        # 雛形 (categories.example.yaml) からコピーされたカテゴリで起動する
+        assert {"semiconductor-stocks", "gpu", "local-llm"}.issubset({c["id"] for c in cats})
         assert all(c["unread"] == 0 for c in cats)
 
         # SSE 購読開始
