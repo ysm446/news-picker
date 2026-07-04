@@ -40,6 +40,8 @@ export const api = {
     }),
   deleteCategory: (id: string) =>
     fetchJson(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  llama35b: (action: "start" | "stop") =>
+    fetchJson<{ status: string }>(`/llama/35b/${action}`, { method: "POST" }),
 };
 
 /** SSE 購読。切断時は EventSource が自動再接続する。 */

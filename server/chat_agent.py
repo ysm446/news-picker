@@ -104,6 +104,13 @@ def run_chat(
     emit: Callable[[dict], None],
 ) -> None:
     """エージェンティックループ本体 (同期)。進捗と回答は emit で配信する。"""
+    # 35B が起動していればそちら、オフなら 9B が代行する
+    if llm.health(config.LLM_35B_URL, timeout=1.0):
+        base_url, model_label = config.LLM_35B_URL, "35b"
+    else:
+        base_url, model_label = config.LLM_9B_URL, "9b"
+    emit({"type": "chat.model", "model": model_label})
+
     msgs: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
     if article_md:
         msgs.append(
@@ -117,7 +124,7 @@ def run_chat(
     for _step in range(MAX_TOOL_STEPS):
         result = llm.chat(
             msgs,
-            base_url=config.LLM_35B_URL,
+            base_url=base_url,
             tools=TOOLS,
             max_tokens=4096,
             timeout=600,
@@ -164,7 +171,7 @@ def run_chat(
             ),
         }
     )
-    result = llm.chat(msgs, base_url=config.LLM_35B_URL, max_tokens=4096, timeout=600)
+    result = llm.chat(msgs, base_url=base_url, max_tokens=4096, timeout=600)
     if result["reasoning"]:
         emit({"type": "chat.thinking", "text": result["reasoning"]})
     emit({"type": "chat.answer", "content": result["content"]})

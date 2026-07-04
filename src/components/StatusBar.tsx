@@ -19,6 +19,18 @@ function Meter({ label, percent, text }: { label: string; percent: number; text:
 
 export function StatusBar({ visible }: { visible: boolean }) {
   const [stats, setStats] = useState<SystemStats | null>(null);
+  const [pending35b, setPending35b] = useState(false);
+  const running35b = stats?.llama["35b"] ?? false;
+
+  // トグル操作後、実際に状態が変わったら pending を解除
+  useEffect(() => {
+    setPending35b(false);
+  }, [running35b]);
+
+  const toggle35b = () => {
+    setPending35b(true);
+    api.llama35b(running35b ? "stop" : "start").catch(() => setPending35b(false));
+  };
 
   useEffect(() => {
     if (!visible) return;
@@ -44,10 +56,30 @@ export function StatusBar({ visible }: { visible: boolean }) {
     <footer className="statusbar">
       {stats && (
         <span className="stat">
-          <span className={`lamp ${stats.llama["9b"] ? "lamp-ok" : "lamp-ng"}`} />
+          <span
+            className={`lamp ${stats.llama["9b"] ? "lamp-ok" : "lamp-ng"}`}
+            title="9B (常駐: 要約・採点)"
+          />
           9B
-          <span className={`lamp ${stats.llama["35b"] ? "lamp-ok" : "lamp-ng"}`} />
-          35B
+          <button
+            className="lamp-btn"
+            onClick={toggle35b}
+            disabled={pending35b}
+            title={
+              pending35b
+                ? "切り替え中... (ロードは数十秒かかります)"
+                : running35b
+                  ? "35B をアンロードして VRAM を解放"
+                  : "35B をロード (深堀りチャット用。オフ中は 9B が代行)"
+            }
+          >
+            <span
+              className={`lamp ${
+                pending35b ? "lamp-pending" : running35b ? "lamp-ok" : "lamp-off"
+              }`}
+            />
+            35B
+          </button>
         </span>
       )}
       <span className="statusbar-meters">

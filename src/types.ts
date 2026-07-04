@@ -59,6 +59,7 @@ export type SseEvent =
   | { type: "category.brief_updated"; category: string; brief: string; updated_at: number };
 
 export type ChatEvent =
+  | { type: "chat.model"; model: "9b" | "35b" }
   | { type: "chat.thinking"; text: string }
   | { type: "chat.tool_call"; name: string; args: { query?: string } }
   | { type: "chat.tool_result"; name: string; count: number | null }

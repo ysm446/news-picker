@@ -63,17 +63,13 @@ function ensureLlama(port, modelPath, ctx, alias) {
 }
 
 function ensureBackendStack() {
+  // 9B のみ自動起動。35B は VRAM を空けておくため、アプリ内の
+  // ステータスバーのトグルから手動でロードする
   ensureLlama(
     8081,
     path.join(ROOT, "models", "Ornith-1.0-9B-GGUF", "ornith-1.0-9b-Q4_K_M.gguf"),
     32768,
     "ornith-9b",
-  );
-  ensureLlama(
-    8082,
-    path.join(ROOT, "models", "Ornith-1.0-35B-GGUF", "ornith-1.0-35b-Q4_K_M.gguf"),
-    65536,
-    "ornith-35b",
   );
   checkHttp(8100, "/categories", (ok) => {
     if (ok) return;

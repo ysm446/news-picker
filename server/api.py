@@ -19,7 +19,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-from . import config, store, system_stats, vault
+from . import config, llama_manager, store, system_stats, vault
 from .chat_agent import run_chat
 from .sse import EventBus, format_sse
 from .workers.brief import BriefWorker
@@ -85,6 +85,7 @@ async def lifespan(app: FastAPI):
     yield
     _stop_loops()
     enrich_task.cancel()
+    llama_manager.stop_if_spawned()
 
 
 app = FastAPI(title="news-picker", lifespan=lifespan)
@@ -382,6 +383,21 @@ async def events() -> StreamingResponse:
 def system_resources() -> dict:
     """ステータスバー用: CPU / RAM / GPU / VRAM / llama-server 死活。"""
     return system_stats.get_resources()
+
+
+@app.post("/llama/35b/start")
+def llama_35b_start() -> dict:
+    """35B を手動ロード (ロード完了は /system/resources の 35b 死活で確認)。"""
+    try:
+        return llama_manager.start_35b()
+    except RuntimeError as e:
+        raise HTTPException(500, str(e)) from e
+
+
+@app.post("/llama/35b/stop")
+def llama_35b_stop() -> dict:
+    """35B を手動アンロードして VRAM を解放する。"""
+    return llama_manager.stop_35b()
 
 
 # ---------------------------------------------------------------- admin

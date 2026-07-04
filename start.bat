@@ -27,8 +27,8 @@ if not exist "dist\index.html" (
   )
 )
 
-REM ---- 1. llama-server 9B + 35B (skips ones already running) ---------------
-powershell -NoLogo -ExecutionPolicy Bypass -File scripts\start-llama-server.ps1 -Model both
+REM ---- 1. llama-server 9B only (35B is loaded on demand from the app) ------
+powershell -NoLogo -ExecutionPolicy Bypass -File scripts\start-llama-server.ps1 -Model 9b
 
 REM ---- 2. backend on :8100 (skip if already listening) ---------------------
 powershell -NoLogo -Command "if (Get-NetTCPConnection -LocalPort 8100 -State Listen -ErrorAction SilentlyContinue) { exit 1 } else { exit 0 }"

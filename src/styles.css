@@ -877,6 +877,43 @@ button {
   background: var(--danger);
 }
 
+.lamp-off {
+  background: var(--text-faint);
+}
+
+.lamp-pending {
+  background: #d9a441;
+  animation: lamp-pulse 1s ease-in-out infinite;
+}
+
+@keyframes lamp-pulse {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.lamp-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.lamp-btn:hover:not(:disabled) {
+  background: var(--panel-hover);
+  color: var(--text);
+}
+
+.lamp-btn:disabled {
+  cursor: default;
+}
+
 /* ステータスバー表示中はサイドパネルをバーの上端まで */
 .statusbar-on .detail-panel,
 .statusbar-on .chat-panel {

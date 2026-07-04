@@ -36,7 +36,11 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
     setTurns(history);
 
     const onEvent = (ev: ChatEvent) => {
-      if (ev.type === "chat.thinking") {
+      if (ev.type === "chat.model") {
+        const line = ev.model === "35b" ? "モデル: 35B" : "モデル: 9B (35B はオフ)";
+        activityRef.current = [...activityRef.current, line];
+        setActivity(activityRef.current);
+      } else if (ev.type === "chat.thinking") {
         thinkingRef.current += (thinkingRef.current ? "\n\n" : "") + ev.text;
       } else if (ev.type === "chat.tool_call") {
         const line = `${ev.name}(${ev.args.query ?? ""})`;
