@@ -327,22 +327,21 @@ export default function App() {
           value={filters.entity}
           onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
         />
-        <label className="filter-check">
-          <input
-            type="checkbox"
-            checked={filters.savedOnly}
-            onChange={(e) => setFilters({ ...filters, savedOnly: e.target.checked })}
-          />
+        <button
+          className={`filter-toggle${filters.savedOnly ? " filter-toggle-on" : ""}`}
+          aria-pressed={filters.savedOnly}
+          onClick={() => setFilters({ ...filters, savedOnly: !filters.savedOnly })}
+        >
           保存のみ
-        </label>
-        <label className="filter-check" title={`関連度 ${prefs?.noise_threshold ?? 30} 未満の記事を隠す (9B が自動採点)`}>
-          <input
-            type="checkbox"
-            checked={filters.hideNoise}
-            onChange={(e) => setFilters({ ...filters, hideNoise: e.target.checked })}
-          />
+        </button>
+        <button
+          className={`filter-toggle${filters.hideNoise ? " filter-toggle-on" : ""}`}
+          aria-pressed={filters.hideNoise}
+          title={`関連度 ${prefs?.noise_threshold ?? 30} 未満の記事を隠す (9B が自動採点)`}
+          onClick={() => setFilters({ ...filters, hideNoise: !filters.hideNoise })}
+        >
           ノイズを隠す
-        </label>
+        </button>
         {filters !== NO_FILTERS && (
           <button className="btn-icon" onClick={() => setFilters(NO_FILTERS)}>
             クリア
