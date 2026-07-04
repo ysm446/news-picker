@@ -25,6 +25,7 @@ export function ArticleCard({
     >
       <div className="card-title">{displayTitle}</div>
       <div className="card-meta">
+        {unread && <span className="unread-dot" aria-label="未読" />}
         <span className="card-source">{article.source ?? "-"}</span>
         <span className="card-time">{relativeTime(article.fetched_at)}</span>
         {article.relevance !== null && (

@@ -280,17 +280,12 @@ button {
   padding: 10px 12px;
   background: var(--bg);
   border: none;
-  border-left: 2px solid transparent;
   border-radius: 8px;
   cursor: pointer;
 }
 
 .card:hover {
   background: var(--panel-hover);
-}
-
-.card-unread {
-  border-left-color: var(--accent);
 }
 
 .card-title {
@@ -310,6 +305,15 @@ button {
   min-height: 24px;
   font-size: 12px;
   color: var(--text-faint);
+}
+
+/* 未読はメタ行頭の小さなドットで表現 */
+.unread-dot {
+  width: 6px;
+  height: 6px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--accent);
 }
 
 .card-source {
