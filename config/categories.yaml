@@ -63,3 +63,30 @@ categories:
   summary_prompt: 'ローカルLLM動向の要約。新モデル・量子化・推論最適化に注目。
 
     '
+- id: ai
+  label: AI全般
+  keywords:
+  - AI
+  - 生成AI
+  - LLM
+  - OpenAI
+  - Anthropic
+  - Google DeepMind
+  query_templates:
+  - 生成AI 最新動向 {month}
+  - OpenAI 発表
+  - Anthropic Claude
+  - Google Gemini AI
+  - AI 規制 政策
+  - AI スタートアップ 資金調達
+  poll_interval_sec: 600
+  jitter_sec: 90
+  impact_axis:
+  - notable
+  - minor
+  max_window: 40
+  summary_prompt: 'あなたはAI業界ウォッチャー。以下の直近記事から、
+
+    新モデル・主要企業の動向・規制・研究の重要な動きを3〜5行で要約せよ。
+
+    '
