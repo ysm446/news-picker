@@ -72,7 +72,9 @@ class BriefWorker:
                         "role": "user",
                         "content": (
                             f"以下は「{category.label}」カテゴリの直近記事一覧 ({len(rows)}件)。\n"
-                            "この一覧から現在の状況を要約せよ。前置きは不要。\n\n"
+                            "この一覧から現在の状況を要約せよ。前置きは不要。\n"
+                            "Markdown 記法 (見出し・強調・箇条書き記号) は使わず、"
+                            "プレーンテキストの短い段落で書くこと。\n\n"
                             + "\n".join(lines)
                         ),
                     },
