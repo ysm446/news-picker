@@ -426,6 +426,8 @@ button {
   border: 1px solid var(--border);
   border-radius: 4px;
   cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0; /* 長いタイトルの隣でも潰れて折り返さない */
 }
 
 .btn-icon:hover:not(:disabled) {
@@ -461,7 +463,13 @@ button {
   border-left: 1px solid var(--border);
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
   animation: slide-in 0.15s ease-out;
+  transition: right 0.15s ease;
   z-index: 10;
+}
+
+/* 深堀りチャット表示中はチャットの左に並べて両方見えるようにする */
+.detail-panel-shifted {
+  right: 480px;
 }
 
 @keyframes slide-in {
@@ -534,10 +542,29 @@ button {
   margin-bottom: 12px;
 }
 
-.detail-loading {
-  font-size: 13px;
+.detail-generating {
+  margin-left: 8px;
+  font-size: 12px;
+  font-weight: 400;
   color: var(--accent);
-  margin: 16px 0;
+}
+
+.skeleton-line {
+  height: 12px;
+  margin: 10px 0;
+  border-radius: 4px;
+  background: var(--panel-hover);
+  animation: skeleton-pulse 1.2s ease-in-out infinite;
+}
+
+.skeleton-line-short {
+  width: 60%;
+}
+
+@keyframes skeleton-pulse {
+  50% {
+    opacity: 0.45;
+  }
 }
 
 .detail-error {
@@ -585,9 +612,16 @@ button {
 }
 
 .detail-footer {
+  display: flex;
+  justify-content: flex-end;
   padding: 10px 16px;
   border-top: 1px solid var(--border);
   flex-shrink: 0;
+}
+
+.detail-footer .btn-primary {
+  width: auto;
+  padding: 0 18px;
 }
 
 .btn-primary {

@@ -7,6 +7,7 @@ interface Props {
   loading: boolean;
   error: string | null;
   translate: boolean;
+  besideChat: boolean; // 深堀りチャットと併存中はチャットの左に並ぶ
   onClose: () => void;
   onDeepDive: (article: Article) => void;
   onSave: (id: number) => void;
@@ -15,13 +16,13 @@ interface Props {
 }
 
 export function DetailPanel({
-  article, loading, error, translate, onClose, onDeepDive, onSave, onLike, onDismiss,
+  article, loading, error, translate, besideChat, onClose, onDeepDive, onSave, onLike, onDismiss,
 }: Props) {
   if (!article) return null;
   const enriched = article.enriched_at != null;
   const translated = translate && article.title_ja && article.title_ja !== article.title;
   return (
-    <aside className="detail-panel">
+    <aside className={`detail-panel${besideChat ? " detail-panel-shifted" : ""}`}>
       <header className="detail-header">
         <span className="detail-time">{relativeTime(article.fetched_at)}</span>
         <div className="detail-actions">
@@ -66,8 +67,23 @@ export function DetailPanel({
         </div>
 
         {error && <p className="detail-error">生成に失敗しました: {error}</p>}
+
+        {/* 生成待ちの間も取得済みの情報 (検索時の抜粋) を先に読めるようにする */}
+        {!enriched && article.snippet && (
+          <section className="detail-section">
+            <h3>抜粋 (検索結果より)</h3>
+            <p>{article.snippet}</p>
+          </section>
+        )}
         {!enriched && loading && !error && (
-          <p className="detail-loading">要約を生成中...</p>
+          <section className="detail-section" aria-busy="true">
+            <h3>
+              要約<span className="detail-generating">生成中...</span>
+            </h3>
+            <div className="skeleton-line" />
+            <div className="skeleton-line" />
+            <div className="skeleton-line skeleton-line-short" />
+          </section>
         )}
 
         {enriched && (

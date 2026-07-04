@@ -400,19 +400,18 @@ export default function App() {
           />
         ))}
       </main>
-      {chat === null && (
-        <DetailPanel
-          article={selected}
-          loading={selected != null && selected.enriched_at == null}
-          error={detailError}
-          translate={prefs?.translate_titles ?? false}
-          onClose={onCloseDetail}
-          onDeepDive={onDeepDive}
-          onSave={onSave}
-          onLike={onLike}
-          onDismiss={onDismiss}
-        />
-      )}
+      <DetailPanel
+        article={selected}
+        loading={selected != null && selected.enriched_at == null}
+        error={detailError}
+        translate={prefs?.translate_titles ?? false}
+        besideChat={chat !== null}
+        onClose={onCloseDetail}
+        onDeepDive={onDeepDive}
+        onSave={onSave}
+        onLike={onLike}
+        onDismiss={onDismiss}
+      />
       {chat !== null && (
         <ChatPanel
           articleId={chat.articleId}
