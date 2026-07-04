@@ -1,7 +1,7 @@
 # progress — 進捗と注意点
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 22:09
+更新日時: 2026-07-04 22:26
 
 ## 現在の状態
 
@@ -16,10 +16,11 @@
 - llama.cpp インストーラー: `scripts/install-llama-server.ps1`(cpu / cuda / vulkan 選択式、`runtime/llama.cpp/` に導入)。**まだ実行はしていない**
 - llama-server 起動スクリプト: `scripts/start-llama-server.ps1`(9B: 8081 / 35B: 8082)
 - Web検索方針の決定: 自前実装(ddgs + Tavily 併用)。詳細は [plan.md](plan.md) の判断メモ
+- lm-chat(= 仕様書の mem-chat、`D:\GitHub\lm-chat`)の流用調査。マッピングは [plan.md](plan.md) の判断メモ
+- 初回コミット(d3d5d53)
 
 ## 未完了(次にやること)
 
-- 初回コミットの実行。
 - `scripts/install-llama-server.ps1` の実行(環境は cuda 13.3 が適合: RTX PRO 5000 Blackwell / ドライバ 582.08)。
 - フェーズ1(基盤): SQLite スキーマ + Vault + rebuild、llama.cpp 2ポート疎通。
 - 以降は [plan.md](plan.md) のフェーズ順。
