@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
 import type { AppSettings, CategoryConfig, CategoryInfo, ModelInfo } from "../types";
+import { XIcon } from "./icons";
 
 interface Props {
   categories: CategoryInfo[];
@@ -128,30 +129,46 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
     }
   };
 
+  const navTo = (t: "categories" | "prefs") => {
+    setTab(t);
+    setEditing(null);
+    setError(null);
+  };
+
+  const contentTitle =
+    tab === "prefs"
+      ? "環境設定"
+      : editing !== null
+        ? isNew
+          ? "カテゴリを追加"
+          : `カテゴリ: ${editing.label || editing.id}`
+        : "カテゴリ";
+
   return (
     <div className="modal-overlay" onClick={onClose}>
-      <div className="modal" onClick={(e) => e.stopPropagation()}>
+      <div className="modal modal-settings" onClick={(e) => e.stopPropagation()}>
+        <aside className="settings-nav">
+          <p className="settings-nav-title">設定</p>
+          <button
+            className={`settings-nav-item${tab === "categories" ? " settings-nav-item-active" : ""}`}
+            onClick={() => navTo("categories")}
+          >
+            カテゴリ
+          </button>
+          <button
+            className={`settings-nav-item${tab === "prefs" ? " settings-nav-item-active" : ""}`}
+            onClick={() => navTo("prefs")}
+          >
+            環境設定
+          </button>
+        </aside>
+        <div className="settings-content">
         <header className="modal-header">
-          <h2>設定</h2>
-          <button className="btn-icon" onClick={onClose}>閉じる</button>
+          <h2>{contentTitle}</h2>
+          <button className="btn-icon icon-btn" aria-label="閉じる" title="閉じる" onClick={onClose}>
+            <XIcon />
+          </button>
         </header>
-
-        {editing === null && (
-          <div className="modal-tabs">
-            <button
-              className={`modal-tab${tab === "categories" ? " modal-tab-active" : ""}`}
-              onClick={() => setTab("categories")}
-            >
-              カテゴリ
-            </button>
-            <button
-              className={`modal-tab${tab === "prefs" ? " modal-tab-active" : ""}`}
-              onClick={() => setTab("prefs")}
-            >
-              環境設定
-            </button>
-          </div>
-        )}
 
         {error && <p className="detail-error">{error}</p>}
 
@@ -354,6 +371,7 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
             </footer>
           </>
         )}
+        </div>
       </div>
     </div>
   );
