@@ -95,6 +95,8 @@ function createWindow() {
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
+      // 通知音をユーザー操作なしで再生できるようにする
+      autoplayPolicy: "no-user-gesture-required",
     },
   });
   mainWindow.once("ready-to-show", () => mainWindow.show());

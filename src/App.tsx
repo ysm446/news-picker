@@ -67,12 +67,38 @@ export default function App() {
   const [showStatus, setShowStatus] = useState(
     () => localStorage.getItem("news-picker.statusbar") !== "off",
   );
+  const [soundOn, setSoundOn] = useState(
+    () => localStorage.getItem("news-picker.sound") !== "off",
+  );
+  const soundOnRef = useRef(soundOn);
+  soundOnRef.current = soundOn;
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const lastPlayedRef = useRef(0);
 
   const toggleStatus = useCallback(() => {
     setShowStatus((prev) => {
       localStorage.setItem("news-picker.statusbar", prev ? "off" : "on");
       return !prev;
     });
+  }, []);
+
+  const toggleSound = useCallback(() => {
+    setSoundOn((prev) => {
+      localStorage.setItem("news-picker.sound", prev ? "off" : "on");
+      return !prev;
+    });
+  }, []);
+
+  const playNotification = useCallback(() => {
+    if (!soundOnRef.current) return;
+    const now = Date.now();
+    if (now - lastPlayedRef.current < 10_000) return; // 連続新着では10秒に1回まで
+    lastPlayedRef.current = now;
+    if (audioRef.current === null) {
+      audioRef.current = new Audio(`${import.meta.env.BASE_URL}news_update.mp3`);
+      audioRef.current.volume = 0.5;
+    }
+    audioRef.current.play().catch(console.error);
   }, []);
   const [settings, setSettings] = useState<{ editId: string | null } | null>(null);
   const esRef = useRef<EventSource | null>(null);
@@ -142,6 +168,7 @@ export default function App() {
         if (list.some((a) => a.id === card.id)) return prev;
         return { ...prev, [ev.category]: [card, ...list] };
       });
+      playNotification();
     } else if (ev.type === "article.status_changed") {
       setArticles((prev) => {
         const next: ArticlesByCat = {};
@@ -178,7 +205,7 @@ export default function App() {
     } else if (ev.type === "category.brief_updated") {
       setBriefs((prev) => ({ ...prev, [ev.category]: ev.brief }));
     }
-  }, []);
+  }, [playNotification]);
 
   useEffect(() => {
     void loadAll();
@@ -245,6 +272,13 @@ export default function App() {
           </button>
           <button className="btn-icon" onClick={onReloadConfig} title="categories.yaml を再読み込み">
             設定再読込
+          </button>
+          <button
+            className="btn-icon"
+            onClick={toggleSound}
+            title="新着ニュースの通知音"
+          >
+            {soundOn ? "通知音: オン" : "通知音: オフ"}
           </button>
           <button
             className="btn-icon"
