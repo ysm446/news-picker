@@ -1,11 +1,11 @@
 # progress — 進捗と注意点
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 23:21
+更新日時: 2026-07-04 23:37
 
 ## 現在の状態
 
-**フェーズ2(取り込み)完了。** ダッシュボード UI(Electron + React)まで実装し、実記事が取り込まれて画面に並ぶところまで動作確認済み。次はフェーズ3(詳細生成)。
+**フェーズ3(詳細生成)完了。** カードクリック → 9B で要約生成 → 詳細パネル表示 → MD 書き出し + FTS/埋め込み索引まで実記事で動作確認済み。フェーズ4は CleanupWorker のみ残(save/hide/tombstone は実装済み)。
 
 ## 完了済み
 
@@ -39,9 +39,17 @@
   - `electron/main.cjs`(dist があれば dist、なければ vite dev を読む)、`src/`(React 19 + TS)、ダークテーマ(docs/rules/electron-design-rules.md 準拠)
   - 実機確認: バックエンド起動 → 実記事7件取り込み → Electron ウィンドウで表示
 
+- **フェーズ3(詳細生成)**:
+  - `server/workers/enrich.py`: EnrichWorker(キュー式、重複 enqueue 防止、enrich 済みは再生成しない)。9B + thinking 無効 + 構造化出力(json_schema)で {summary, key_points, entities, impact, tags} を生成
+  - `server/fetch_page.py`(trafilatura 本文抽出、失敗時 snippet 代替)、`server/embed.py`(Ruri v3-310m、**クエリ/文書プレフィックス分離**、CPU 実行)
+  - `GET /articles/{id}` が未 enrich なら自動キュー、`POST /articles/{id}/enrich`、SSE `article.enriched` / `article.enrich_failed`
+  - UI: 詳細パネル(右スライドイン、要約/要点/エンティティ/タグ/出典、生成中表示、「深堀り」ボタンはフェーズ6まで無効)
+  - 実記事で E2E 確認: マイクロン HBM 記事 → 高品質な日本語要約(ticker MU 抽出、impact bearish)→ MD 4.4KB 書き出し → FTS + 768次元埋め込み索引
+
 ## 未完了(次にやること)
 
-- フェーズ3(詳細生成): EnrichWorker + 詳細パネル + MD 書き出し + 埋め込み/FTS。カードクリックは現状 URL を開くだけ(TODO コメント箇所)。
+- フェーズ4の残り: CleanupWorker(日次パージ + tombstone 退避)。
+- フェーズ5: BriefWorker(カテゴリ要約、デバウンス)+ 列ヘッダ表示(UI 側は表示枠実装済み)。
 - 以降は [plan.md](plan.md) のフェーズ順。
 
 ## 起動方法(開発)
@@ -56,3 +64,5 @@
 - 仕様書 §3 のサーバー起動フラグは vLLM 流のため llama-server では使えない(plan.md 判断メモ参照)。起動は `scripts/start-llama-server.ps1` を正とする。
 - **thinking のオーバーヘッドが大きい**(一言回答に思考 ~1,000 トークン、max_tokens=512 だと本文が空)。9B の高頻度タスクは thinking 無効化か短思考プロンプトが必須(plan.md 判断メモ参照)。
 - FTS5 trigram は3文字以上のクエリでしかヒットしない(2文字の日本語単語は検索不可)。UI の検索実装時に考慮する。
+- 9B の日本語ニュース要約品質(仕様 §13 の懸念)は実測で良好。thinking 無効化 + 構造化出力の組み合わせで安定した JSON が返る。
+- `enriched_at` は索引反映(FTS/埋め込み)より先に立つ。SSE `article.enriched` は全処理完了後に飛ぶので UI は問題ないが、REST ポーリングで enriched_at だけ見ると索引未完了の瞬間がある。

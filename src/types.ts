@@ -6,6 +6,12 @@ export interface CategoryInfo {
   unread: number;
 }
 
+export interface Entities {
+  tickers: string[];
+  companies: string[];
+  models: string[];
+}
+
 export interface Article {
   id: number;
   category: string;
@@ -18,8 +24,10 @@ export interface Article {
   published_at: number | null;
   summary: string | null;
   key_points: string[] | null;
+  entities: Entities | null;
   impact: string | null;
   tags: string[] | null;
+  enriched_at: number | null;
 }
 
 export interface Brief {
@@ -36,5 +44,6 @@ export type SseEvent =
       article: { id: number; title: string; source: string | null; fetched_at: number };
     }
   | { type: "article.enriched"; article: Partial<Article> & { id: number } }
+  | { type: "article.enrich_failed"; id: number; detail: string }
   | { type: "article.status_changed"; id: number; status: Article["status"] }
   | { type: "category.brief_updated"; category: string; brief: string; updated_at: number };

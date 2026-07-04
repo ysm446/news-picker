@@ -19,6 +19,7 @@ from fastapi.responses import StreamingResponse
 
 from . import config, store, vault
 from .sse import EventBus, format_sse
+from .workers.enrich import EnrichWorker
 from .workers.ingest import IngestWorker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
@@ -26,6 +27,7 @@ logging.getLogger("primp").setLevel(logging.WARNING)  # ddgs の HTTP ログを�
 
 bus = EventBus()
 workers: dict[str, IngestWorker] = {}
+enricher: EnrichWorker | None = None
 
 
 def _load_json(value):
@@ -41,12 +43,14 @@ def _article_to_dict(row) -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global enricher
     categories = config.load_categories()
     for cat in categories:
         workers[cat.id] = IngestWorker(cat, bus)
-    tasks: list[asyncio.Task] = []
+    enricher = EnrichWorker(bus, categories)
+    tasks: list[asyncio.Task] = [asyncio.create_task(enricher.run())]
     if not os.environ.get("NEWS_PICKER_NO_INGEST"):
-        tasks = [asyncio.create_task(w.run()) for w in workers.values()]
+        tasks += [asyncio.create_task(w.run()) for w in workers.values()]
     yield
     for t in tasks:
         t.cancel()
@@ -141,8 +145,26 @@ def get_article(article_id: int) -> dict:
         conn.close()
     if row is None:
         raise HTTPException(404, f"article {article_id} not found")
-    # TODO(フェーズ3): 未 enrich なら EnrichWorker のキューに積む
-    return _article_to_dict(row)
+    d = _article_to_dict(row)
+    # 未 enrich なら詳細生成をトリガ (spec §10)。完了は SSE article.enriched で通知
+    if not d["enriched_at"] and enricher is not None:
+        d["enrich_queued"] = enricher.enqueue(article_id) or True
+    return d
+
+
+@app.post("/articles/{article_id}/enrich")
+def enqueue_enrich(article_id: int) -> dict:
+    conn = store.connect()
+    try:
+        row = store.get_article(conn, article_id)
+    finally:
+        conn.close()
+    if row is None:
+        raise HTTPException(404, f"article {article_id} not found")
+    if row["enriched_at"]:
+        return {"id": article_id, "queued": False, "cached": True}
+    assert enricher is not None
+    return {"id": article_id, "queued": enricher.enqueue(article_id), "cached": False}
 
 
 @app.post("/articles/{article_id}/save")

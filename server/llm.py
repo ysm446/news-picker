@@ -33,12 +33,15 @@ def chat(
     max_tokens: int = 2048,
     timeout: float = 300.0,
     response_json_schema: dict | None = None,
+    enable_thinking: bool | None = None,
     **sampling,
 ) -> dict:
     """非ストリームの chat completion。{"content", "reasoning", "usage"} を返す。
 
     response_json_schema を渡すと llama-server の構造化出力
     (json_schema response_format) で JSON を強制する。
+    enable_thinking=False で思考を無効化する (高頻度の要約タスク用。
+    Ornith は一言の回答にも思考 ~1000 トークンを使うため必須。plan.md 参照)。
     """
     base_url = base_url or config.LLM_9B_URL
     payload: dict = {
@@ -47,6 +50,8 @@ def chat(
         **DEFAULT_SAMPLING,
         **sampling,
     }
+    if enable_thinking is not None:
+        payload["chat_template_kwargs"] = {"enable_thinking": enable_thinking}
     if response_json_schema is not None:
         payload["response_format"] = {
             "type": "json_schema",

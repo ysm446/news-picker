@@ -12,6 +12,7 @@ export const api = {
   categories: () => fetchJson<CategoryInfo[]>("/categories"),
   articles: (category: string, limit = 60) =>
     fetchJson<Article[]>(`/articles?category=${encodeURIComponent(category)}&limit=${limit}`),
+  article: (id: number) => fetchJson<Article>(`/articles/${id}`), // 未 enrich なら生成がキューされる
   brief: (category: string) => fetchJson<Brief>(`/categories/${encodeURIComponent(category)}/brief`),
   save: (id: number) => fetchJson(`/articles/${id}/save`, { method: "POST" }),
   hide: (id: number) => fetchJson(`/articles/${id}/hide`, { method: "POST" }),

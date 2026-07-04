@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import re
 import sqlite3
+import struct
 import time
 from pathlib import Path
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
@@ -190,6 +191,63 @@ def add_tombstone(
             conn.execute(sql, args)
     else:
         conn.execute(sql, args)
+
+
+# ---------------------------------------------------------------- enrich
+
+def update_enrichment(
+    conn: sqlite3.Connection,
+    article_id: int,
+    *,
+    summary: str,
+    key_points: str,
+    entities: str,
+    impact: str | None,
+    tags: str,
+    body: str | None,
+    enriched_at: int | None = None,
+) -> None:
+    """詳細生成の結果を反映し、status new は seen に進める。"""
+    with conn:
+        conn.execute(
+            """UPDATE articles SET
+                 summary = ?, key_points = ?, entities = ?, impact = ?, tags = ?,
+                 body = ?, enriched_at = ?,
+                 status = CASE WHEN status = 'new' THEN 'seen' ELSE status END
+               WHERE id = ?""",
+            (summary, key_points, entities, impact, tags, body,
+             enriched_at or int(time.time()), article_id),
+        )
+
+
+def set_md_path(conn: sqlite3.Connection, article_id: int, md_path: str) -> None:
+    with conn:
+        conn.execute("UPDATE articles SET md_path = ? WHERE id = ?", (md_path, article_id))
+
+
+def update_fts(
+    conn: sqlite3.Connection,
+    article_id: int,
+    title: str,
+    summary: str | None,
+    body: str | None,
+) -> None:
+    with conn:
+        conn.execute("DELETE FROM fts_articles WHERE article_id = ?", (article_id,))
+        conn.execute(
+            "INSERT INTO fts_articles (article_id, title, summary, body) VALUES (?, ?, ?, ?)",
+            (article_id, title, summary or "", body or ""),
+        )
+
+
+def upsert_embedding(conn: sqlite3.Connection, article_id: int, vector) -> None:
+    blob = struct.pack(f"{len(vector)}f", *vector)
+    with conn:
+        conn.execute("DELETE FROM vec_articles WHERE article_id = ?", (article_id,))
+        conn.execute(
+            "INSERT INTO vec_articles (article_id, embedding) VALUES (?, ?)",
+            (article_id, blob),
+        )
 
 
 # ---------------------------------------------------------------- rebuild 用

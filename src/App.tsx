@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { api, openEvents } from "./api";
 import type { Article, CategoryInfo, SseEvent } from "./types";
 import { CategoryColumn } from "./components/CategoryColumn";
+import { DetailPanel } from "./components/DetailPanel";
 
 type ArticlesByCat = Record<string, Article[]>;
 
@@ -11,7 +12,11 @@ export default function App() {
   const [briefs, setBriefs] = useState<Record<string, string>>({});
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selected, setSelected] = useState<Article | null>(null);
+  const [detailError, setDetailError] = useState<string | null>(null);
   const esRef = useRef<EventSource | null>(null);
+  const selectedIdRef = useRef<number | null>(null);
+  selectedIdRef.current = selected?.id ?? null;
 
   const loadAll = useCallback(async () => {
     try {
@@ -56,8 +61,10 @@ export default function App() {
         published_at: null,
         summary: null,
         key_points: null,
+        entities: null,
         impact: null,
         tags: null,
+        enriched_at: null,
       };
       setArticles((prev) => {
         const list = prev[ev.category] ?? [];
@@ -83,6 +90,9 @@ export default function App() {
         }
         return next;
       });
+      setSelected((prev) => (prev && prev.id === ev.article.id ? { ...prev, ...ev.article } : prev));
+    } else if (ev.type === "article.enrich_failed") {
+      if (selectedIdRef.current === ev.id) setDetailError(ev.detail);
     } else if (ev.type === "category.brief_updated") {
       setBriefs((prev) => ({ ...prev, [ev.category]: ev.brief }));
     }
@@ -103,8 +113,18 @@ export default function App() {
   }, []);
 
   const onOpen = useCallback((article: Article) => {
-    // TODO(フェーズ3): 詳細パネルを開いて enrich をトリガ
-    if (article.url) window.open(article.url, "_blank");
+    setDetailError(null);
+    setSelected(article); // まずリストの情報で即表示
+    // 全文取得 (未 enrich なら生成がキューされ、完了は SSE で届く)
+    api
+      .article(article.id)
+      .then((full) => setSelected((prev) => (prev && prev.id === full.id ? full : prev)))
+      .catch((e) => setDetailError(String(e)));
+  }, []);
+
+  const onCloseDetail = useCallback(() => {
+    setSelected(null);
+    setDetailError(null);
   }, []);
 
   return (
@@ -136,6 +156,12 @@ export default function App() {
           />
         ))}
       </main>
+      <DetailPanel
+        article={selected}
+        loading={selected != null && selected.enriched_at == null}
+        error={detailError}
+        onClose={onCloseDetail}
+      />
     </div>
   );
 }

@@ -7,5 +7,6 @@ fastapi
 uvicorn
 ddgs
 
-# フェーズ3以降で追加予定:
-# sentence-transformers  # Ruri v3-310m (フェーズ3)
+# フェーズ3 (詳細生成)
+trafilatura           # 記事本文の抽出
+sentence-transformers # Ruri v3-310m 埋め込み
