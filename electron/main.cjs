@@ -3,7 +3,7 @@
 // - バックエンド (uvicorn) と llama-server が未起動なら自動起動する
 //   (自分で起動した子プロセスだけを終了時に kill する)
 // - ウィンドウを閉じてもトレイに常駐し、取り込みは裏で動き続ける
-const { app, BrowserWindow, Menu, Tray, nativeImage, shell } = require("electron");
+const { app, BrowserWindow, Menu, Tray, nativeImage, screen, shell } = require("electron");
 const { spawn } = require("child_process");
 const path = require("path");
 const fs = require("fs");
@@ -88,16 +88,20 @@ function ensureBackendStack() {
 // ---------------------------------------------------------------- ウィンドウ
 
 function createWindow() {
+  // 1920x1080 を基本とし、画面 (作業領域) に収まらない場合は縮める
+  const workArea = screen.getPrimaryDisplay().workAreaSize;
   mainWindow = new BrowserWindow({
-    width: 1440,
-    height: 900,
+    width: Math.min(1920, workArea.width),
+    height: Math.min(1080, workArea.height),
     backgroundColor: "#1b1d21",
     autoHideMenuBar: true,
+    show: false, // 描画準備が整ってから表示 (白画面のちらつき防止)
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
     },
   });
+  mainWindow.once("ready-to-show", () => mainWindow.show());
 
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
     shell.openExternal(url);

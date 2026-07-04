@@ -11,6 +11,7 @@ import asyncio
 import json
 import logging
 import os
+import re
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -99,6 +100,28 @@ app.add_middleware(
 
 # ---------------------------------------------------------------- categories
 
+class CategoryModel(BaseModel):
+    id: str
+    label: str
+    keywords: list[str] = []
+    query_templates: list[str] = []
+    poll_interval_sec: int = 600
+    jitter_sec: int = 60
+    impact_axis: list[str] = ["notable", "minor"]
+    max_window: int = 30
+    summary_prompt: str = ""
+
+
+_CATEGORY_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
+
+
+def _save_and_reload(categories: list[config.Category]) -> None:
+    config.save_categories(categories)
+    _stop_loops()
+    _build_workers(categories)
+    _start_loops()
+
+
 @app.get("/categories")
 def list_categories() -> list[dict]:
     conn = store.connect()
@@ -115,12 +138,57 @@ def list_categories() -> list[dict]:
         {
             "id": c.id,
             "label": c.label,
+            "keywords": c.keywords,
+            "query_templates": c.query_templates,
             "poll_interval_sec": c.poll_interval_sec,
+            "jitter_sec": c.jitter_sec,
             "impact_axis": c.impact_axis,
+            "max_window": c.max_window,
+            "summary_prompt": c.summary_prompt,
             "unread": counts.get(c.id, 0),
         }
         for c in config.load_categories()
     ]
+
+
+@app.post("/categories")
+async def create_category(model: CategoryModel) -> dict:  # async: ワーカー再起動はイベントループ上で行う
+    if not _CATEGORY_ID_RE.match(model.id):
+        raise HTTPException(400, "id は小文字英数字とハイフンのみ (例: semiconductor-stocks)")
+    if not model.query_templates:
+        raise HTTPException(400, "query_templates を1つ以上指定してください")
+    categories = config.load_categories()
+    if any(c.id == model.id for c in categories):
+        raise HTTPException(409, f"カテゴリ {model.id} は既に存在します")
+    categories.append(config.Category(**model.model_dump()))
+    _save_and_reload(categories)
+    return {"id": model.id, "created": True}
+
+
+@app.put("/categories/{category_id}")
+async def update_category(category_id: str, model: CategoryModel) -> dict:
+    if not model.query_templates:
+        raise HTTPException(400, "query_templates を1つ以上指定してください")
+    categories = config.load_categories()
+    index = next((i for i, c in enumerate(categories) if c.id == category_id), None)
+    if index is None:
+        raise HTTPException(404, f"カテゴリ {category_id} が見つかりません")
+    data = model.model_dump()
+    data["id"] = category_id  # id は変更不可 (フォルダ名・DB値と紐づくため)
+    categories[index] = config.Category(**data)
+    _save_and_reload(categories)
+    return {"id": category_id, "updated": True}
+
+
+@app.delete("/categories/{category_id}")
+async def delete_category(category_id: str) -> dict:
+    categories = config.load_categories()
+    remaining = [c for c in categories if c.id != category_id]
+    if len(remaining) == len(categories):
+        raise HTTPException(404, f"カテゴリ {category_id} が見つかりません")
+    _save_and_reload(remaining)
+    # 記事 (DB/vault) は消さない。カテゴリを再作成すれば再び表示される
+    return {"id": category_id, "deleted": True}
 
 
 @app.get("/categories/{category_id}/brief")

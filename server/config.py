@@ -6,7 +6,7 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 import yaml
@@ -42,3 +42,14 @@ def load_categories(path: Path | None = None) -> list[Category]:
     with open(path, encoding="utf-8") as f:
         raw = yaml.safe_load(f)
     return [Category(**entry) for entry in raw.get("categories", [])]
+
+
+def save_categories(categories: list[Category], path: Path | None = None) -> None:
+    """categories.yaml を書き戻す (UI からの追加・編集・削除用)。"""
+    from .atomic_io import atomic_write_text
+
+    data = {"categories": [asdict(c) for c in categories]}
+    atomic_write_text(
+        path or CATEGORIES_PATH,
+        yaml.safe_dump(data, allow_unicode=True, sort_keys=False),
+    )

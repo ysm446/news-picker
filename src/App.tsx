@@ -4,6 +4,7 @@ import type { Article, CategoryInfo, SseEvent } from "./types";
 import { CategoryColumn } from "./components/CategoryColumn";
 import { ChatPanel } from "./components/ChatPanel";
 import { DetailPanel } from "./components/DetailPanel";
+import { SettingsModal } from "./components/SettingsModal";
 import { StatusBar } from "./components/StatusBar";
 
 type ArticlesByCat = Record<string, Article[]>;
@@ -57,8 +58,11 @@ export default function App() {
       return !prev;
     });
   }, []);
+  const [showSettings, setShowSettings] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const selectedIdRef = useRef<number | null>(null);
+  const loadedRef = useRef(false);
+  const retryRef = useRef<number | null>(null);
   selectedIdRef.current = selected?.id ?? null;
 
   const loadAll = useCallback(async () => {
@@ -83,10 +87,17 @@ export default function App() {
         }),
       );
       setBriefs(Object.fromEntries(briefEntries.filter((e) => e !== null)));
+      loadedRef.current = true;
       setError(null);
     } catch (e) {
-      setError(`バックエンドに接続できません (${API_HINT})`);
+      // 起動直後はバックエンドの自動起動が終わっていないことがあるため再試行する
       console.error(e);
+      if (!loadedRef.current) {
+        if (retryRef.current !== null) window.clearTimeout(retryRef.current);
+        retryRef.current = window.setTimeout(() => void loadAll(), 2000);
+      } else {
+        setError(`バックエンドに接続できません (${API_HINT})`);
+      }
     }
   }, []);
 
@@ -143,8 +154,15 @@ export default function App() {
 
   useEffect(() => {
     void loadAll();
-    esRef.current = openEvents(handleEvent, setConnected);
-    return () => esRef.current?.close();
+    esRef.current = openEvents(handleEvent, (ok) => {
+      setConnected(ok);
+      // SSE が (再) 接続できた = バックエンドが起きた合図なのでデータを取り直す
+      if (ok) void loadAll();
+    });
+    return () => {
+      esRef.current?.close();
+      if (retryRef.current !== null) window.clearTimeout(retryRef.current);
+    };
   }, [loadAll, handleEvent]);
 
   const onSave = useCallback((id: number) => {
@@ -193,6 +211,9 @@ export default function App() {
             onClick={() => setChat({ articleId: null, title: null })}
           >
             チャット
+          </button>
+          <button className="btn-icon" onClick={() => setShowSettings(true)}>
+            設定
           </button>
           <button className="btn-icon" onClick={onReloadConfig} title="categories.yaml を再読み込み">
             設定再読込
@@ -258,6 +279,9 @@ export default function App() {
         </div>
       )}
       <main className="board">
+        {categories.length === 0 && !error && (
+          <p className="board-loading">バックエンドに接続しています...</p>
+        )}
         {categories.map((c) => (
           <CategoryColumn
             key={c.id}
@@ -284,6 +308,13 @@ export default function App() {
           articleId={chat.articleId}
           articleTitle={chat.title}
           onClose={() => setChat(null)}
+        />
+      )}
+      {showSettings && (
+        <SettingsModal
+          categories={categories}
+          onClose={() => setShowSettings(false)}
+          onChanged={() => void loadAll()}
         />
       )}
       <StatusBar visible={showStatus} />

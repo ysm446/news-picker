@@ -1,8 +1,16 @@
-export interface CategoryInfo {
+export interface CategoryConfig {
   id: string;
   label: string;
+  keywords: string[];
+  query_templates: string[];
   poll_interval_sec: number;
+  jitter_sec: number;
   impact_axis: string[];
+  max_window: number;
+  summary_prompt: string;
+}
+
+export interface CategoryInfo extends CategoryConfig {
   unread: number;
 }
 
