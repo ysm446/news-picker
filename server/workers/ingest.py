@@ -12,7 +12,7 @@ import logging
 import random
 from datetime import datetime
 
-from .. import config, curator, llm, store
+from .. import config, curator, llm, settings_store, store
 from ..search_web import search_news
 from ..sse import EventBus
 
@@ -74,27 +74,32 @@ class IngestWorker:
                 {"type": "article.new", "category": self.category.id, "article": article}
             )
 
-    def curate_sync(self, inserted: list[dict]) -> dict[int, int]:
-        """新着バッチを 9B で採点して DB に反映する (タイトル配信の後追い)。"""
+    def curate_sync(self, inserted: list[dict]) -> dict[int, dict]:
+        """新着バッチを 9B で採点 (+設定オン時は日本語訳) して DB に反映する。"""
         if not inserted or not llm.health(config.LLM_9B_URL):
             return {}
-        scores = curator.score_articles(self.category, inserted)
-        if scores:
+        translate = bool(settings_store.get().get("translate_titles"))
+        results = curator.score_articles(self.category, inserted, translate=translate)
+        if results:
             conn = store.connect()
             try:
-                store.set_relevance(conn, scores)
+                store.set_curation(conn, results)
             finally:
                 conn.close()
-        return scores
+        return results
 
-    def publish_scores(self, scores: dict[int, int]) -> None:
-        if scores:
+    def publish_scores(self, results: dict[int, dict]) -> None:
+        if results:
             self.bus.publish(
                 {
                     "type": "article.curated",
                     "scores": [
-                        {"id": article_id, "relevance": score}
-                        for article_id, score in scores.items()
+                        {
+                            "id": article_id,
+                            "relevance": r["score"],
+                            "title_ja": r.get("title_ja"),
+                        }
+                        for article_id, r in results.items()
                     ],
                 }
             )

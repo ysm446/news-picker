@@ -3,22 +3,24 @@ import { relativeTime } from "../api";
 
 interface Props {
   article: Article;
+  translate: boolean;
   onSave: (id: number) => void;
   onHide: (id: number) => void;
   onOpen: (article: Article) => void;
 }
 
-export function ArticleCard({ article, onSave, onHide, onOpen }: Props) {
+export function ArticleCard({ article, translate, onSave, onHide, onOpen }: Props) {
   const unread = article.status === "new";
+  const displayTitle = translate && article.title_ja ? article.title_ja : article.title;
   return (
     <div
       className={`card${unread ? " card-unread" : ""}`}
       onClick={() => onOpen(article)}
-      title={article.title}
+      title={article.title /* ツールチップは常に原文 */}
     >
       <div className="card-title">
         {unread && <span className="unread-dot" aria-label="未読" />}
-        {article.title}
+        {displayTitle}
       </div>
       <div className="card-meta">
         <span className="card-source">{article.source ?? "-"}</span>

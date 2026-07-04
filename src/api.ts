@@ -1,4 +1,5 @@
 import type {
+  AppSettings,
   Article,
   Brief,
   CategoryConfig,
@@ -42,6 +43,13 @@ export const api = {
     fetchJson(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
   llama35b: (action: "start" | "stop") =>
     fetchJson<{ status: string }>(`/llama/35b/${action}`, { method: "POST" }),
+  getSettings: () => fetchJson<AppSettings>("/settings"),
+  putSettings: (s: Partial<AppSettings>) =>
+    fetchJson<AppSettings>("/settings", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(s),
+    }),
 };
 
 /** SSE 購読。切断時は EventSource が自動再接続する。 */

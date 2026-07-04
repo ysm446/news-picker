@@ -42,7 +42,8 @@ CREATE TABLE IF NOT EXISTS articles (
   body         TEXT,
   md_path      TEXT,
   enriched_at  INTEGER,
-  relevance    INTEGER                     -- キュレーション採点 0-100 (NULL = 未採点)
+  relevance    INTEGER,                    -- キュレーション採点 0-100 (NULL = 未採点)
+  title_ja     TEXT                        -- 見出しの日本語訳 (設定オン時のみ生成)
 );
 CREATE INDEX IF NOT EXISTS idx_articles_cat_status
   ON articles(category, status, fetched_at DESC);
@@ -87,10 +88,14 @@ def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode = WAL")
     conn.executescript(_SCHEMA)
     # 既存 DB へのカラム追加 (冪等)
-    try:
-        conn.execute("ALTER TABLE articles ADD COLUMN relevance INTEGER")
-    except sqlite3.OperationalError:
-        pass
+    for ddl in (
+        "ALTER TABLE articles ADD COLUMN relevance INTEGER",
+        "ALTER TABLE articles ADD COLUMN title_ja TEXT",
+    ):
+        try:
+            conn.execute(ddl)
+        except sqlite3.OperationalError:
+            pass
     return conn
 
 
@@ -183,11 +188,15 @@ def hide_article(conn: sqlite3.Connection, article_id: int) -> str | None:
     return row["url_hash"]
 
 
-def set_relevance(conn: sqlite3.Connection, scores: dict[int, int]) -> None:
+def set_curation(conn: sqlite3.Connection, results: dict[int, dict]) -> None:
+    """キュレーション結果 (score + 任意の title_ja) を反映する。"""
     with conn:
         conn.executemany(
-            "UPDATE articles SET relevance = ? WHERE id = ?",
-            [(score, article_id) for article_id, score in scores.items()],
+            "UPDATE articles SET relevance = ?, title_ja = COALESCE(?, title_ja) WHERE id = ?",
+            [
+                (r["score"], r.get("title_ja"), article_id)
+                for article_id, r in results.items()
+            ],
         )
 
 
@@ -302,7 +311,7 @@ def insert_full_article(conn: sqlite3.Connection, row: dict) -> None:
         "id", "category", "title", "url", "url_hash", "source", "snippet",
         "published_at", "fetched_at", "status", "summary", "key_points",
         "entities", "impact", "tags", "body", "md_path", "enriched_at",
-        "relevance",
+        "relevance", "title_ja",
     )
     values = [row.get(c) for c in cols]
     with conn:

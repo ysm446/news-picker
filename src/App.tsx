@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, openEvents } from "./api";
-import type { Article, CategoryInfo, SseEvent } from "./types";
+import type { AppSettings, Article, CategoryInfo, SseEvent } from "./types";
 import { CategoryColumn } from "./components/CategoryColumn";
 import { ChatPanel } from "./components/ChatPanel";
 import { GearIcon } from "./components/icons";
@@ -18,8 +18,6 @@ interface Filters {
   hideNoise: boolean;
 }
 
-const NOISE_THRESHOLD = 30; // これ未満の relevance は「ノイズ」扱い
-
 const NO_FILTERS: Filters = {
   range: "all",
   impact: "",
@@ -28,14 +26,14 @@ const NO_FILTERS: Filters = {
   hideNoise: true,
 };
 
-function applyFilters(list: Article[], f: Filters): Article[] {
+function applyFilters(list: Article[], f: Filters, noiseThreshold: number): Article[] {
   const cutoff = f.range === "all" ? 0 : Date.now() / 1000 - Number(f.range) * 86400;
   const q = f.entity.trim().toLowerCase();
   return list.filter((a) => {
     if (
       f.hideNoise &&
       a.relevance !== null &&
-      a.relevance < NOISE_THRESHOLD &&
+      a.relevance < noiseThreshold &&
       a.status !== "saved"
     ) {
       return false;
@@ -65,6 +63,7 @@ export default function App() {
   const [detailError, setDetailError] = useState<string | null>(null);
   const [chat, setChat] = useState<{ articleId: number | null; title: string | null } | null>(null);
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
+  const [prefs, setPrefs] = useState<AppSettings | null>(null);
   const [showStatus, setShowStatus] = useState(
     () => localStorage.getItem("news-picker.statusbar") !== "off",
   );
@@ -112,6 +111,7 @@ export default function App() {
     try {
       const cats = await api.categories();
       setCategories(cats);
+      api.getSettings().then(setPrefs).catch(console.error);
       const byCat: ArticlesByCat = {};
       await Promise.all(
         cats.map(async (c) => {
@@ -163,6 +163,7 @@ export default function App() {
         tags: null,
         enriched_at: null,
         relevance: null,
+        title_ja: null,
       };
       setArticles((prev) => {
         const list = prev[ev.category] ?? [];
@@ -193,13 +194,16 @@ export default function App() {
     } else if (ev.type === "article.enrich_failed") {
       if (selectedIdRef.current === ev.id) setDetailError(ev.detail);
     } else if (ev.type === "article.curated") {
-      const byId = new Map(ev.scores.map((s) => [s.id, s.relevance]));
+      const byId = new Map(ev.scores.map((s) => [s.id, s]));
       setArticles((prev) => {
         const next: ArticlesByCat = {};
         for (const [cat, list] of Object.entries(prev)) {
-          next[cat] = list.map((a) =>
-            byId.has(a.id) ? { ...a, relevance: byId.get(a.id)! } : a,
-          );
+          next[cat] = list.map((a) => {
+            const s = byId.get(a.id);
+            return s
+              ? { ...a, relevance: s.relevance, title_ja: s.title_ja ?? a.title_ja }
+              : a;
+          });
         }
         return next;
       });
@@ -331,7 +335,7 @@ export default function App() {
           />
           保存のみ
         </label>
-        <label className="filter-check" title={`関連度 ${NOISE_THRESHOLD} 未満の記事を隠す (9B が自動採点)`}>
+        <label className="filter-check" title={`関連度 ${prefs?.noise_threshold ?? 30} 未満の記事を隠す (9B が自動採点)`}>
           <input
             type="checkbox"
             checked={filters.hideNoise}
@@ -359,8 +363,9 @@ export default function App() {
           <CategoryColumn
             key={c.id}
             category={c}
-            articles={applyFilters(articles[c.id] ?? [], filters)}
+            articles={applyFilters(articles[c.id] ?? [], filters, prefs?.noise_threshold ?? 30)}
             brief={briefs[c.id] ?? null}
+            translate={prefs?.translate_titles ?? false}
             onSave={onSave}
             onHide={onHide}
             onOpen={onOpen}

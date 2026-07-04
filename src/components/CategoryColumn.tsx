@@ -6,6 +6,7 @@ interface Props {
   category: CategoryInfo;
   articles: Article[];
   brief: string | null;
+  translate: boolean;
   onSave: (id: number) => void;
   onHide: (id: number) => void;
   onOpen: (article: Article) => void;
@@ -13,7 +14,7 @@ interface Props {
 }
 
 export function CategoryColumn({
-  category, articles, brief, onSave, onHide, onOpen, onSettings,
+  category, articles, brief, translate, onSave, onHide, onOpen, onSettings,
 }: Props) {
   const unread = articles.filter((a) => a.status === "new").length;
   return (
@@ -38,7 +39,14 @@ export function CategoryColumn({
           <p className="column-empty">記事はまだありません</p>
         ) : (
           articles.map((a) => (
-            <ArticleCard key={a.id} article={a} onSave={onSave} onHide={onHide} onOpen={onOpen} />
+            <ArticleCard
+              key={a.id}
+              article={a}
+              translate={translate}
+              onSave={onSave}
+              onHide={onHide}
+              onOpen={onOpen}
+            />
           ))
         )}
       </div>

@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from .. import config, store, vault
+from .. import config, settings_store, store, vault
 
 log = logging.getLogger(__name__)
 
@@ -21,13 +21,17 @@ _INTERVAL_SEC = 24 * 3600
 
 class CleanupWorker:
     def __init__(self, retention_days: int | None = None) -> None:
-        self.retention_days = retention_days or config.RETENTION_DAYS
+        # None なら実行のたびに環境設定 (data/settings.json) から読む
+        self.retention_days = retention_days
 
     def cleanup_once(self) -> int:
+        retention = self.retention_days or int(
+            settings_store.get().get("retention_days", config.RETENTION_DAYS)
+        )
         conn = store.connect()
         purged = 0
         try:
-            for row in store.find_purgeable(conn, self.retention_days):
+            for row in store.find_purgeable(conn, retention):
                 store.add_tombstone(conn, row["url_hash"], "purged")
                 vault.append_tombstone(row["url_hash"], "purged")
                 store.delete_article_index(conn, row["id"])
@@ -38,7 +42,7 @@ class CleanupWorker:
         finally:
             conn.close()
         if purged:
-            log.info("cleanup: purged %d articles (older than %dd)", purged, self.retention_days)
+            log.info("cleanup: purged %d articles (older than %dd)", purged, retention)
         return purged
 
     async def run(self) -> None:

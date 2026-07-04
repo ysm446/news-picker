@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { api } from "../api";
-import type { CategoryConfig, CategoryInfo } from "../types";
+import type { AppSettings, CategoryConfig, CategoryInfo } from "../types";
 
 interface Props {
   categories: CategoryInfo[];
@@ -31,6 +31,29 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [tab, setTab] = useState<"categories" | "prefs">("categories");
+  const [prefs, setPrefs] = useState<AppSettings | null>(null);
+  const [prefsSaved, setPrefsSaved] = useState(false);
+
+  useEffect(() => {
+    api.getSettings().then(setPrefs).catch((e) => setError(String(e)));
+  }, []);
+
+  const savePrefs = async () => {
+    if (!prefs) return;
+    setBusy(true);
+    setError(null);
+    try {
+      setPrefs(await api.putSettings(prefs));
+      setPrefsSaved(true);
+      setTimeout(() => setPrefsSaved(false), 2000);
+      onChanged();
+    } catch (e) {
+      setError(String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
 
   const startNew = () => {
     setEditing({ ...EMPTY });
@@ -91,13 +114,88 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <header className="modal-header">
-          <h2>カテゴリ設定</h2>
+          <h2>設定</h2>
           <button className="btn-icon" onClick={onClose}>閉じる</button>
         </header>
 
+        {editing === null && (
+          <div className="modal-tabs">
+            <button
+              className={`modal-tab${tab === "categories" ? " modal-tab-active" : ""}`}
+              onClick={() => setTab("categories")}
+            >
+              カテゴリ
+            </button>
+            <button
+              className={`modal-tab${tab === "prefs" ? " modal-tab-active" : ""}`}
+              onClick={() => setTab("prefs")}
+            >
+              環境設定
+            </button>
+          </div>
+        )}
+
         {error && <p className="detail-error">{error}</p>}
 
-        {editing === null ? (
+        {editing === null && tab === "prefs" ? (
+          <>
+            <div className="settings-form">
+              {prefs === null ? (
+                <p className="chat-hint">読み込み中...</p>
+              ) : (
+                <>
+                  <label className="filter-check prefs-check">
+                    <input
+                      type="checkbox"
+                      checked={prefs.translate_titles}
+                      onChange={(e) =>
+                        setPrefs({ ...prefs, translate_titles: e.target.checked })
+                      }
+                    />
+                    ニュースの見出しを日本語訳する (9B が自動翻訳。新着から適用。
+                    既存分は採点し直しで翻訳)
+                  </label>
+                  <div className="form-grid">
+                    <label className="form-row">
+                      <span>ノイズ閾値 (関連度がこれ未満を非表示。0-100)</span>
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={prefs.noise_threshold}
+                        onChange={(e) =>
+                          setPrefs({ ...prefs, noise_threshold: Number(e.target.value) || 0 })
+                        }
+                      />
+                    </label>
+                    <label className="form-row">
+                      <span>記事の保持日数 (保存済みは対象外)</span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={365}
+                        value={prefs.retention_days}
+                        onChange={(e) =>
+                          setPrefs({ ...prefs, retention_days: Number(e.target.value) || 14 })
+                        }
+                      />
+                    </label>
+                  </div>
+                </>
+              )}
+            </div>
+            <footer className="modal-footer">
+              {prefsSaved && <span className="prefs-saved">保存しました</span>}
+              <button
+                className="btn-primary"
+                disabled={busy || prefs === null}
+                onClick={() => void savePrefs()}
+              >
+                保存
+              </button>
+            </footer>
+          </>
+        ) : editing === null ? (
           <>
             <div className="settings-list">
               {categories.map((c) => (

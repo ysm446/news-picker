@@ -37,6 +37,13 @@ export interface Article {
   tags: string[] | null;
   enriched_at: number | null;
   relevance: number | null;
+  title_ja: string | null;
+}
+
+export interface AppSettings {
+  translate_titles: boolean;
+  noise_threshold: number;
+  retention_days: number;
 }
 
 export interface Brief {
@@ -54,7 +61,10 @@ export type SseEvent =
     }
   | { type: "article.enriched"; article: Partial<Article> & { id: number } }
   | { type: "article.enrich_failed"; id: number; detail: string }
-  | { type: "article.curated"; scores: { id: number; relevance: number }[] }
+  | {
+      type: "article.curated";
+      scores: { id: number; relevance: number; title_ja?: string | null }[];
+    }
   | { type: "article.status_changed"; id: number; status: Article["status"] }
   | { type: "category.brief_updated"; category: string; brief: string; updated_at: number };
 

@@ -17,9 +17,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from . import config, llama_manager, store, system_stats, vault
+from . import config, llama_manager, settings_store, store, system_stats, vault
 from .chat_agent import run_chat
 from .sse import EventBus, format_sse
 from .workers.brief import BriefWorker
@@ -377,6 +377,25 @@ async def events() -> StreamingResponse:
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 
+# ---------------------------------------------------------------- 環境設定
+
+class SettingsModel(BaseModel):
+    translate_titles: bool | None = None
+    noise_threshold: int | None = Field(None, ge=0, le=100)
+    retention_days: int | None = Field(None, ge=1, le=365)
+
+
+@app.get("/settings")
+def get_settings() -> dict:
+    return settings_store.get()
+
+
+@app.put("/settings")
+def put_settings(model: SettingsModel) -> dict:
+    """部分更新。渡されたキーだけ上書きする。"""
+    return settings_store.update(model.model_dump(exclude_none=True))
+
+
 # ---------------------------------------------------------------- system
 
 @app.get("/system/resources")
@@ -426,28 +445,31 @@ async def ingest_now(category: str) -> dict:
 
 
 @app.post("/admin/curate-now")
-async def curate_now(category: str) -> dict:
-    """未採点 (relevance IS NULL) の既存記事をまとめて採点する。"""
+async def curate_now(category: str, force: bool = False) -> dict:
+    """未採点の既存記事をまとめて採点する。force=True で直近50件を再採点
+    (日本語訳を後から付けたい場合などに使う)。"""
     worker = workers.get(category)
     if worker is None:
         raise HTTPException(404, f"unknown category {category}")
 
-    def backfill() -> dict[int, int]:
+    condition = "" if force else "AND relevance IS NULL"
+
+    def backfill() -> dict[int, dict]:
         conn = store.connect()
         try:
             rows = conn.execute(
-                """SELECT id, title, snippet FROM articles
-                   WHERE category = ? AND relevance IS NULL AND status != 'hidden'
-                   ORDER BY fetched_at DESC LIMIT 50""",
+                f"""SELECT id, title, snippet FROM articles
+                    WHERE category = ? {condition} AND status != 'hidden'
+                    ORDER BY fetched_at DESC LIMIT 50""",
                 (category,),
             ).fetchall()
         finally:
             conn.close()
         return worker.curate_sync([dict(r) for r in rows])
 
-    scores = await asyncio.to_thread(backfill)
-    worker.publish_scores(scores)
-    return {"category": category, "scored": len(scores)}
+    results = await asyncio.to_thread(backfill)
+    worker.publish_scores(results)
+    return {"category": category, "scored": len(results)}
 
 
 @app.post("/admin/brief-now")
