@@ -79,7 +79,14 @@ class IngestWorker:
         if not inserted or not llm.health(config.LLM_STANDARD_URL):
             return {}
         translate = bool(settings_store.get().get("translate_titles"))
-        results = curator.score_articles(self.category, inserted, translate=translate)
+        conn = store.connect()
+        try:
+            examples = store.get_feedback_examples(conn, self.category.id)
+        finally:
+            conn.close()
+        results = curator.score_articles(
+            self.category, inserted, translate=translate, examples=examples
+        )
         if results:
             conn = store.connect()
             try:

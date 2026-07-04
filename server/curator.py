@@ -63,11 +63,15 @@ def _score_schema(translate: bool) -> dict:
 
 
 def score_articles(
-    category: config.Category, articles: list[dict], translate: bool = False
+    category: config.Category,
+    articles: list[dict],
+    translate: bool = False,
+    examples: dict[str, list[str]] | None = None,
 ) -> dict[int, dict]:
     """記事バッチを採点して {article_id: {score, title_ja}} を返す。失敗時は {}。
 
     translate=True のとき、日本語以外の見出しには title_ja (日本語訳) が付く。
+    examples はユーザーの過去の評価 (few-shot)。採点の個人化に使う。
     """
     if not articles:
         return {}
@@ -91,6 +95,14 @@ def score_articles(
     if category.description:
         category_desc += f"カテゴリの説明・採点基準: {category.description}\n"
     category_desc += f"カテゴリのキーワード: {', '.join(category.keywords) or 'なし'}\n"
+
+    # ユーザーの過去の評価を few-shot として同梱 (採点の個人化)
+    if examples and (examples.get("positive") or examples.get("negative")):
+        category_desc += "\nこのユーザーの過去の評価 (傾向を採点に反映せよ):\n"
+        for title in examples.get("positive") or []:
+            category_desc += f"- [重要と評価] {title[:70]}\n"
+        for title in examples.get("negative") or []:
+            category_desc += f"- [不要と評価] {title[:70]}\n"
 
     try:
         result = llm.chat(

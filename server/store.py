@@ -43,7 +43,8 @@ CREATE TABLE IF NOT EXISTS articles (
   md_path      TEXT,
   enriched_at  INTEGER,
   relevance    INTEGER,                    -- キュレーション採点 0-100 (NULL = 未採点)
-  title_ja     TEXT                        -- 見出しの日本語訳 (設定オン時のみ生成)
+  title_ja     TEXT,                       -- 見出しの日本語訳 (設定オン時のみ生成)
+  rating       INTEGER                     -- ユーザー評価 (1=👍 / -1=興味なし / NULL)
 );
 CREATE INDEX IF NOT EXISTS idx_articles_cat_status
   ON articles(category, status, fetched_at DESC);
@@ -91,6 +92,7 @@ def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
     for ddl in (
         "ALTER TABLE articles ADD COLUMN relevance INTEGER",
         "ALTER TABLE articles ADD COLUMN title_ja TEXT",
+        "ALTER TABLE articles ADD COLUMN rating INTEGER",
     ):
         try:
             conn.execute(ddl)
@@ -200,6 +202,42 @@ def set_curation(conn: sqlite3.Connection, results: dict[int, dict]) -> None:
         )
 
 
+def set_rating(conn: sqlite3.Connection, article_id: int, rating: int | None) -> None:
+    if rating not in (1, -1, None):
+        raise ValueError(f"invalid rating: {rating}")
+    with conn:
+        conn.execute("UPDATE articles SET rating = ? WHERE id = ?", (rating, article_id))
+
+
+def get_feedback_examples(
+    conn: sqlite3.Connection, category: str, limit: int = 5
+) -> dict[str, list[str]]:
+    """few-shot 用: このカテゴリでユーザーが評価した記事タイトルの実例。
+
+    正例 = 保存 or 👍。負例 = 興味なし (rating=-1) を優先し、足りなければ
+    非表示 (理由が曖昧なため優先度は下げる) で補う。
+    """
+    positive = [
+        r["title"]
+        for r in conn.execute(
+            """SELECT title FROM articles
+               WHERE category = ? AND (status = 'saved' OR rating = 1)
+               ORDER BY fetched_at DESC LIMIT ?""",
+            (category, limit),
+        )
+    ]
+    negative = [
+        r["title"]
+        for r in conn.execute(
+            """SELECT title FROM articles
+               WHERE category = ? AND (rating = -1 OR status = 'hidden')
+               ORDER BY (rating = -1) DESC, fetched_at DESC LIMIT ?""",
+            (category, limit),
+        )
+    ]
+    return {"positive": positive, "negative": negative}
+
+
 def set_title_ja(conn: sqlite3.Connection, translations: dict[int, str]) -> None:
     with conn:
         conn.executemany(
@@ -284,11 +322,14 @@ def upsert_embedding(conn: sqlite3.Connection, article_id: int, vector) -> None:
 # ---------------------------------------------------------------- 自動整理
 
 def find_purgeable(conn: sqlite3.Connection, retention_days: int) -> list[sqlite3.Row]:
-    """パージ対象: status new/seen かつ fetched_at が retention_days より古い行。"""
+    """パージ対象: status new/seen かつ fetched_at が retention_days より古い行。
+
+    評価済み (rating あり) は学習データとして残すため対象外。
+    """
     cutoff = int(time.time()) - retention_days * 86400
     return conn.execute(
         """SELECT id, url_hash, md_path FROM articles
-           WHERE status IN ('new', 'seen') AND fetched_at < ?""",
+           WHERE status IN ('new', 'seen') AND fetched_at < ? AND rating IS NULL""",
         (cutoff,),
     ).fetchall()
 
@@ -319,7 +360,7 @@ def insert_full_article(conn: sqlite3.Connection, row: dict) -> None:
         "id", "category", "title", "url", "url_hash", "source", "snippet",
         "published_at", "fetched_at", "status", "summary", "key_points",
         "entities", "impact", "tags", "body", "md_path", "enriched_at",
-        "relevance", "title_ja",
+        "relevance", "title_ja", "rating",
     )
     values = [row.get(c) for c in cols]
     with conn:

@@ -283,6 +283,39 @@ def save_article(article_id: int) -> dict:
     return {"id": article_id, "status": "saved"}
 
 
+@app.post("/articles/{article_id}/like")
+def like_article(article_id: int) -> dict:
+    """👍 のトグル (rating 1 <-> なし)。キュレーション学習の正例になる。"""
+    conn = store.connect()
+    try:
+        row = store.get_article(conn, article_id)
+        if row is None:
+            raise HTTPException(404, f"article {article_id} not found")
+        rating = None if row["rating"] == 1 else 1
+        store.set_rating(conn, article_id, rating)
+    finally:
+        conn.close()
+    bus.publish({"type": "article.rated", "id": article_id, "rating": rating})
+    return {"id": article_id, "rating": rating}
+
+
+@app.post("/articles/{article_id}/dismiss")
+def dismiss_article(article_id: int) -> dict:
+    """興味なし (rating=-1 + 非表示 + tombstone)。キュレーション学習の負例になる。"""
+    conn = store.connect()
+    try:
+        row = store.get_article(conn, article_id)
+        if row is None:
+            raise HTTPException(404, f"article {article_id} not found")
+        store.set_rating(conn, article_id, -1)
+        url_hash = store.hide_article(conn, article_id)
+    finally:
+        conn.close()
+    vault.append_tombstone(url_hash, "deleted")
+    bus.publish({"type": "article.status_changed", "id": article_id, "status": "hidden"})
+    return {"id": article_id, "rating": -1, "status": "hidden"}
+
+
 @app.post("/articles/{article_id}/hide")
 def hide_article(article_id: int) -> dict:
     conn = store.connect()

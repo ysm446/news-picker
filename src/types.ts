@@ -39,6 +39,7 @@ export interface Article {
   enriched_at: number | null;
   relevance: number | null;
   title_ja: string | null;
+  rating: number | null;
 }
 
 export interface AppSettings {
@@ -69,6 +70,7 @@ export type SseEvent =
       scores: { id: number; relevance: number | null; title_ja?: string | null }[];
     }
   | { type: "article.status_changed"; id: number; status: Article["status"] }
+  | { type: "article.rated"; id: number; rating: number | null }
   | { type: "category.brief_updated"; category: string; brief: string; updated_at: number };
 
 export type ChatEvent =

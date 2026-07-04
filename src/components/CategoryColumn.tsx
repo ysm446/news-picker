@@ -10,12 +10,14 @@ interface Props {
   translate: boolean;
   onSave: (id: number) => void;
   onHide: (id: number) => void;
+  onLike: (id: number) => void;
+  onDismiss: (id: number) => void;
   onOpen: (article: Article) => void;
   onSettings: (categoryId: string) => void;
 }
 
 export function CategoryColumn({
-  category, articles, brief, translate, onSave, onHide, onOpen, onSettings,
+  category, articles, brief, translate, onSave, onHide, onLike, onDismiss, onOpen, onSettings,
 }: Props) {
   const unread = articles.filter((a) => a.status === "new").length;
   const [briefOpen, setBriefOpen] = useState(false);
@@ -53,6 +55,8 @@ export function CategoryColumn({
               translate={translate}
               onSave={onSave}
               onHide={onHide}
+              onLike={onLike}
+              onDismiss={onDismiss}
               onOpen={onOpen}
             />
           ))

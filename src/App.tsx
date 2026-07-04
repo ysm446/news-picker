@@ -164,6 +164,7 @@ export default function App() {
         enriched_at: null,
         relevance: null,
         title_ja: null,
+        rating: null,
       };
       setArticles((prev) => {
         const list = prev[ev.category] ?? [];
@@ -193,6 +194,14 @@ export default function App() {
       setSelected((prev) => (prev && prev.id === ev.article.id ? { ...prev, ...ev.article } : prev));
     } else if (ev.type === "article.enrich_failed") {
       if (selectedIdRef.current === ev.id) setDetailError(ev.detail);
+    } else if (ev.type === "article.rated") {
+      setArticles((prev) => {
+        const next: ArticlesByCat = {};
+        for (const [cat, list] of Object.entries(prev)) {
+          next[cat] = list.map((a) => (a.id === ev.id ? { ...a, rating: ev.rating } : a));
+        }
+        return next;
+      });
     } else if (ev.type === "article.curated") {
       const byId = new Map(ev.scores.map((s) => [s.id, s]));
       setArticles((prev) => {
@@ -235,6 +244,14 @@ export default function App() {
 
   const onHide = useCallback((id: number) => {
     void api.hide(id).catch(console.error);
+  }, []);
+
+  const onLike = useCallback((id: number) => {
+    void api.like(id).catch(console.error); // 反映は SSE article.rated 経由
+  }, []);
+
+  const onDismiss = useCallback((id: number) => {
+    void api.dismiss(id).catch(console.error); // 反映は SSE status_changed 経由
   }, []);
 
   const onOpen = useCallback((article: Article) => {
@@ -370,6 +387,8 @@ export default function App() {
             translate={prefs?.translate_titles ?? false}
             onSave={onSave}
             onHide={onHide}
+            onLike={onLike}
+            onDismiss={onDismiss}
             onOpen={onOpen}
             onSettings={(id) => setSettings({ editId: id })}
           />
