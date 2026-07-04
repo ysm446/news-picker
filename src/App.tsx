@@ -268,7 +268,6 @@ export default function App() {
   return (
     <div className={`app${showStatus ? " statusbar-on" : ""}`}>
       <header className="topbar">
-        <h1 className="app-title">news-picker</h1>
         <div className="topbar-right">
           <button
             className="btn-icon"

@@ -55,17 +55,11 @@ button {
 .topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  height: 44px;
+  justify-content: flex-end;
+  height: 40px;
   padding: 0 16px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-}
-
-.app-title {
-  font-size: 14px;
-  font-weight: 600;
-  margin: 0;
 }
 
 .topbar-right {
@@ -430,7 +424,7 @@ button {
 
 .detail-panel {
   position: fixed;
-  top: 44px;
+  top: 40px;
   right: 0;
   bottom: 0;
   width: 400px;
@@ -567,7 +561,7 @@ button {
 
 .chat-panel {
   position: fixed;
-  top: 44px;
+  top: 40px;
   right: 0;
   bottom: 0;
   width: 480px;
