@@ -61,6 +61,7 @@
   - `更新日時: 2026-05-19 22:10`
 - `docs/changelog.md` は Git 履歴やユーザー向け変更を追うための履歴として使う(日本語で書く)。
 - `docs/reference/` 配下は設計資料、仕様メモ、調査資料を置く場所として使う。
+- `docs/design/` 配下は実装の設計ガイド(検索クエリ設計など)を置く場所として使う。
 - `docs/plan/` 配下(goals / plan / progress)は進捗管理用の入口として保つ。
 - UI 実装時は [docs/rules/electron-design-rules.md](docs/rules/electron-design-rules.md) のデザインルールに従う。
 
