@@ -4,9 +4,8 @@ models/
 # --- 実行バイナリ (scripts/install-llama-server.ps1 で導入) ---
 runtime/
 
-# --- アプリ生成データ (news-vault のみ MD 一次データとして git 管理) ---
-data/*
-!data/news-vault/
+# --- アプリ生成データ (ローカル専用。news-vault 含め git 管理しない) ---
+data/
 
 # --- Node / Electron ---
 node_modules/

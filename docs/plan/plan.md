@@ -1,7 +1,7 @@
 # plan — 実装方針と優先順位
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 23:42
+更新日時: 2026-07-05 00:49
 
 仕様の詳細は [../news-picker-spec.md](../news-picker-spec.md) を参照。ここでは実装の順序と判断を管理する。
 
@@ -35,6 +35,7 @@
 - 2026-07-04: **Web検索は自前実装にする**(mrkrsl/web-search-mcp は不採用)。理由: news モード・published_at がない、スクレイピングは24時間ポーリングに脆い、Node+Playwright が構成に加わる。取り込みループは Python `ddgs` ライブラリ直呼び(news 検索対応・API キー不要)、深堀りチャット側は Tavily API を併用(無料枠 月1,000クレジットのため高頻度ポーリングには使わない)。MCP プロトコル化は外部クライアントから使う必要が出てから薄いラッパーを被せる。
 - 2026-07-04: **llama.cpp は GitHub Releases のビルド済みバイナリを `scripts/install-llama-server.ps1` で `runtime/llama.cpp/` に導入する**(cpu / cuda / vulkan 選択式、既定は auto 判定)。最新タグはCIビルド未完了でアセット0件のことがあるため「アセットのある最新リリース」を選ぶ。CUDA 既定は 13.3(Blackwell 対応)。将来的にアプリ(Electron)の初回セットアップからこの処理を呼べるようにする。
 - 2026-07-04: **アプリ生成データは `data/` に集約**(SQLite 索引・ログ・キャッシュ、git 管理外)。MD 一次データは `data/news-vault/` とし、ここだけ git 管理する(仕様書 §12 のルート直下 `news-vault/` から変更)。
+- 2026-07-05: **`data/` はアプリ repo で丸ごと git 管理外に変更**(ユーザー判断で上記を上書き)。ニュース MD は個人のローカルデータであり、公開リポジトリのコード履歴に混ぜない。仕様書の「vault は git 管理推奨」を実現したい場合は、data ルート側で独立リポジトリを作る(将来の data_root 選択案とセットで検討)。過去コミットには MD が残っている点に注意(完全に消したい場合は filter-repo で履歴書き換え + force push が必要)。
 - 2026-07-04: 仕様書 §3 の `--reasoning-parser qwen3` / `--tool-call-parser qwen3_xml` は vLLM のフラグで、llama-server には存在しない。llama-server では `--jinja` でチャットテンプレート(tool-call パース・reasoning_content 分離)を有効にする(`scripts/start-llama-server.ps1` 参照)。
 - 2026-07-04: **仕様書の「mem-chat」の実体は `D:\GitHub\lm-chat`**。調査の結果、フェーズ1・3の土台として十分流用可能。主なマッピング:
   - `store.py` ← `backend/store_base.py`(sqlite-vec ロード、FTS5 `tokenize='trigram'`(日本語部分一致)、vec0 `FLOAT[768]`)+ `store_memory.py` の `search_memory`(**RRF(k=60)+ 半減期式時間減衰のハイブリッド検索** — 「新着優先」にそのまま使える)

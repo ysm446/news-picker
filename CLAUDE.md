@@ -29,8 +29,7 @@
 
 - `models/` — GGUF モデル(git 管理外)
 - `runtime/` — llama.cpp 等の実行バイナリ(git 管理外)。`scripts/install-llama-server.ps1` で導入する
-- `data/` — アプリが生成するデータの置き場(SQLite 索引、ログ、キャッシュ等。git 管理外)
-  - 例外: `data/news-vault/` は MD 一次データなので git 管理する
+- `data/` — アプリが生成するデータの置き場(news-vault の MD、SQLite 索引、ログ等)。**丸ごと git 管理外**(ローカル個人データのため。仕様書の「vault は git 管理推奨」はアプリ repo ではなくデータ側での独立管理を意味する — plan.md 判断メモ参照)
 - `scripts/` — セットアップ・起動スクリプト(`install-llama-server.ps1` / `start-llama-server.ps1`)
 
 ## 基本方針
