@@ -20,6 +20,9 @@ CATEGORIES_PATH = ROOT / "config" / "categories.yaml"
 LLM_9B_URL = os.environ.get("NEWS_PICKER_LLM_9B", "http://127.0.0.1:8081")
 LLM_35B_URL = os.environ.get("NEWS_PICKER_LLM_35B", "http://127.0.0.1:8082")
 
+# 自動整理: new/seen のままこの日数を超えた記事をパージ (saved/hidden は対象外)
+RETENTION_DAYS = int(os.environ.get("NEWS_PICKER_RETENTION_DAYS", "14"))
+
 
 @dataclass
 class Category:

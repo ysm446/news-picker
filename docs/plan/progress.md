@@ -1,11 +1,11 @@
 # progress — 進捗と注意点
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 23:37
+更新日時: 2026-07-04 23:42
 
 ## 現在の状態
 
-**フェーズ3(詳細生成)完了。** カードクリック → 9B で要約生成 → 詳細パネル表示 → MD 書き出し + FTS/埋め込み索引まで実記事で動作確認済み。フェーズ4は CleanupWorker のみ残(save/hide/tombstone は実装済み)。
+**フェーズ5まで完了。** 取り込み → 詳細生成 → 保存/削除/自動整理 → カテゴリ要約まで全て実記事で動作確認済み。残りはフェーズ6(深堀りチャット・35B)とフェーズ7(仕上げ)。
 
 ## 完了済み
 
@@ -46,11 +46,14 @@
   - UI: 詳細パネル(右スライドイン、要約/要点/エンティティ/タグ/出典、生成中表示、「深堀り」ボタンはフェーズ6まで無効)
   - 実記事で E2E 確認: マイクロン HBM 記事 → 高品質な日本語要約(ticker MU 抽出、impact bearish)→ MD 4.4KB 書き出し → FTS + 768次元埋め込み索引
 
+- **フェーズ4(自動整理)**: `server/workers/cleanup.py` — 日次で new/seen の古い記事を tombstones('purged') に退避して DB + 記事 MD を削除(saved/hidden は対象外)。保持日数は `NEWS_PICKER_RETENTION_DAYS`(既定14日)。`tests/test_phase4_cleanup.py` 全パス
+- **フェーズ5(カテゴリ要約)**: `server/workers/brief.py` — 新着トリガ + デバウンス(3件たまる or 15分経過)、直近 max_window 件全体を 9B に渡して作り直し。`_category-brief.md` 書き出し + SSE `category.brief_updated`。実データで自動生成を確認(3カテゴリとも)
+- 開発用エンドポイント: `/admin/brief-now` `/admin/cleanup-now` 追加
+
 ## 未完了(次にやること)
 
-- フェーズ4の残り: CleanupWorker(日次パージ + tombstone 退避)。
-- フェーズ5: BriefWorker(カテゴリ要約、デバウンス)+ 列ヘッダ表示(UI 側は表示枠実装済み)。
-- 以降は [plan.md](plan.md) のフェーズ順。
+- フェーズ6: 深堀りチャット(35B + vault_search + Web検索のエージェンティックループ、チャットビュー UI)。
+- フェーズ7: 仕上げ(フィルタ、トレイ常駐、config リロード、Electron からのバックエンド自動起動)。
 
 ## 起動方法(開発)
 

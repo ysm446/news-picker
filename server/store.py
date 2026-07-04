@@ -250,6 +250,26 @@ def upsert_embedding(conn: sqlite3.Connection, article_id: int, vector) -> None:
         )
 
 
+# ---------------------------------------------------------------- 自動整理
+
+def find_purgeable(conn: sqlite3.Connection, retention_days: int) -> list[sqlite3.Row]:
+    """パージ対象: status new/seen かつ fetched_at が retention_days より古い行。"""
+    cutoff = int(time.time()) - retention_days * 86400
+    return conn.execute(
+        """SELECT id, url_hash, md_path FROM articles
+           WHERE status IN ('new', 'seen') AND fetched_at < ?""",
+        (cutoff,),
+    ).fetchall()
+
+
+def delete_article_index(conn: sqlite3.Connection, article_id: int) -> None:
+    """記事を articles / fts / vec から削除する (tombstone 登録は呼び出し側)。"""
+    with conn:
+        conn.execute("DELETE FROM articles WHERE id = ?", (article_id,))
+        conn.execute("DELETE FROM fts_articles WHERE article_id = ?", (article_id,))
+        conn.execute("DELETE FROM vec_articles WHERE article_id = ?", (article_id,))
+
+
 # ---------------------------------------------------------------- rebuild 用
 
 def clear_index(conn: sqlite3.Connection) -> None:

@@ -19,6 +19,8 @@ from fastapi.responses import StreamingResponse
 
 from . import config, store, vault
 from .sse import EventBus, format_sse
+from .workers.brief import BriefWorker
+from .workers.cleanup import CleanupWorker
 from .workers.enrich import EnrichWorker
 from .workers.ingest import IngestWorker
 
@@ -28,6 +30,8 @@ logging.getLogger("primp").setLevel(logging.WARNING)  # ddgs の HTTP ログを�
 bus = EventBus()
 workers: dict[str, IngestWorker] = {}
 enricher: EnrichWorker | None = None
+briefer: BriefWorker | None = None
+cleaner = CleanupWorker()
 
 
 def _load_json(value):
@@ -43,14 +47,17 @@ def _article_to_dict(row) -> dict:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global enricher
+    global enricher, briefer
     categories = config.load_categories()
     for cat in categories:
         workers[cat.id] = IngestWorker(cat, bus)
     enricher = EnrichWorker(bus, categories)
+    briefer = BriefWorker(bus, categories)
     tasks: list[asyncio.Task] = [asyncio.create_task(enricher.run())]
     if not os.environ.get("NEWS_PICKER_NO_INGEST"):
         tasks += [asyncio.create_task(w.run()) for w in workers.values()]
+        tasks.append(asyncio.create_task(briefer.run()))
+        tasks.append(asyncio.create_task(cleaner.run()))
     yield
     for t in tasks:
         t.cancel()
@@ -236,3 +243,24 @@ async def ingest_now(category: str) -> dict:
     inserted = await asyncio.to_thread(worker.ingest_once)
     worker.publish_new(inserted)
     return {"category": category, "new": len(inserted)}
+
+
+@app.post("/admin/brief-now")
+async def brief_now(category: str) -> dict:
+    """開発用: デバウンスを無視してカテゴリ要約を生成する。"""
+    assert briefer is not None
+    target = next((c for c in briefer.categories if c.id == category), None)
+    if target is None:
+        raise HTTPException(404, f"unknown category {category}")
+    result = await asyncio.to_thread(briefer.maybe_generate, target, True)
+    if result:
+        bus.publish({"type": "category.brief_updated", **result})
+        return result
+    return {"category": category, "brief": None}
+
+
+@app.post("/admin/cleanup-now")
+async def cleanup_now() -> dict:
+    """開発用: 日次を待たずに自動整理を実行する。"""
+    purged = await asyncio.to_thread(cleaner.cleanup_once)
+    return {"purged": purged}
