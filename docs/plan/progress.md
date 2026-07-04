@@ -1,11 +1,11 @@
 # progress — 進捗と注意点
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 22:55
+更新日時: 2026-07-04 23:02
 
 ## 現在の状態
 
-**フェーズ1(基盤)完了。** SQLite スキーマ + Vault + rebuild + llama.cpp 2ポート疎通まで検証済み。次はフェーズ2(取り込み)。
+**フェーズ2(取り込み)のバックエンド完了。** 検索 → dedup → SSE 配信までエンドツーエンド検証済み。ダッシュボード UI(Electron + React)は未着手なので、次は UI かフェーズ3(詳細生成)のどちらかから。
 
 ## 完了済み
 
@@ -27,9 +27,17 @@
   - `tests/test_phase1.py`: dedup / tombstone / MD 往復 / rebuild / FTS 全パス
   - llama.cpp 2ポート疎通: 9B(8081)・35B(8082)とも起動・health・日本語応答を確認(VRAM 使用 ~31.7GB / 48GB)
 
+- **フェーズ2(取り込み)バックエンド**:
+  - `server/search_web.py`: ddgs ニュース検索(region=jp-jp、失敗時は空リストで次周期へ)
+  - `server/sse.py`: イベントバス(購読者ごとのキュー、詰まったら取りこぼす)
+  - `server/workers/ingest.py`: IngestWorker(クエリローテーション + {month} 展開 + ジッタ、最短30秒の下限)
+  - `server/api.py`: spec §10 の API(categories / articles / save / hide / brief / events / rebuild-index)+ 開発用 `/admin/ingest-now`
+  - `tests/test_phase2_smoke.py`: uvicorn 実起動での E2E(ライブ ddgs 取り込み2件 → SSE article.new → save/hide → rebuild)全パス
+
 ## 未完了(次にやること)
 
-- フェーズ2(取り込み): IngestWorker + ddgs 検索 + SSE(article.new)+ FastAPI 最小 API。ダッシュボードにタイトルが流れるところまで。
+- ダッシュボード UI(Electron + React): カテゴリ列にタイトルが流れるところまで(フェーズ2の残り)。
+- フェーズ3(詳細生成): EnrichWorker + 詳細パネル + MD 書き出し + 埋め込み/FTS。
 - 以降は [plan.md](plan.md) のフェーズ順。
 
 ## 注意点

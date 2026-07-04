@@ -2,10 +2,10 @@
 pyyaml
 sqlite-vec
 
-# フェーズ2以降で追加予定:
-# fastapi
-# uvicorn
-# pydantic
-# apscheduler
-# ddgs
+# フェーズ2 (取り込み)
+fastapi
+uvicorn
+ddgs
+
+# フェーズ3以降で追加予定:
 # sentence-transformers  # Ruri v3-310m (フェーズ3)

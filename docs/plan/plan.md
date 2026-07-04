@@ -1,7 +1,7 @@
 # plan — 実装方針と優先順位
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 22:55
+更新日時: 2026-07-04 23:02
 
 仕様の詳細は [../news-picker-spec.md](../news-picker-spec.md) を参照。ここでは実装の順序と判断を管理する。
 
@@ -51,4 +51,5 @@
   - FTS5 は仕様 §4.1 の外部コンテンツ表(`content='articles'`)ではなく**独立テーブル + 手動同期**にした(rebuild と削除処理が単純になる。lm-chat の実績パターン)。`tokenize='trigram'` で日本語の分かち書きなし部分一致に対応(**検索クエリは3文字以上必要**)。
   - **tombstone は vault 側(`_tombstones.jsonl`)にも永続化**する。DB だけに持つと rebuild で削除情報が消えて記事が復活するため。「MD が真実の源」の原則を削除情報にも適用した形。
   - Python は `.venv`(Python 3.13)で管理。依存は `server/requirements.txt`。
+- 2026-07-04: フェーズ2のスケジューラは **APScheduler ではなく asyncio タスク**(FastAPI lifespan 内でカテゴリごとに常駐ループ)で実装した。依存が減り、ポーリング + ジッタ程度なら十分。トレイ常駐(フェーズ7)の要件が出た時点で再検討する。
 - 2026-07-04: **thinking オーバーヘッドを実測**(仕様 §13 の懸念が的中)。Ornith 9B/35B とも一言の回答に思考 ~1,000 トークンを消費し、max_tokens=512 では本文が空になる。フェーズ3の EnrichWorker では (a) `chat_template_kwargs: {enable_thinking: false}` での思考無効化(lm-chat の llm_proxy パターン)か (b) 短思考を強制する system prompt + 十分な max_tokens が必須。
