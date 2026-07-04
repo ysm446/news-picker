@@ -69,6 +69,16 @@ foreach ($key in $targets) {
     if (-not (Test-Path $s.Path)) {
         throw "Model file not found: $($s.Path)"
     }
+    # already running on this port? skip (avoids double start from start.bat)
+    try {
+        $health = Invoke-WebRequest -Uri "http://127.0.0.1:$($s.Port)/health" -UseBasicParsing -TimeoutSec 2
+        if ($health.StatusCode -eq 200) {
+            Write-Host "$($s.Alias) already running on port $($s.Port), skipping."
+            continue
+        }
+    } catch {
+        # not running -> start below
+    }
     # --jinja enables the chat template incl. tool-call parsing and
     # reasoning_content separation for Qwen3-based Ornith models.
     $argList = @(

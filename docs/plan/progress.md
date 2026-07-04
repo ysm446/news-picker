@@ -1,7 +1,7 @@
 # progress — 進捗と注意点
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 23:42
+更新日時: 2026-07-04 23:46
 
 ## 現在の状態
 
@@ -55,10 +55,14 @@
 - フェーズ6: 深堀りチャット(35B + vault_search + Web検索のエージェンティックループ、チャットビュー UI)。
 - フェーズ7: 仕上げ(フィルタ、トレイ常駐、config リロード、Electron からのバックエンド自動起動)。
 
-## 起動方法(開発)
+## 起動方法
 
-1. バックエンド: `npm run server`(= `.venv\Scripts\python -m uvicorn server.api:app --port 8100`)
-2. アプリ: `npm run build` 済みなら `npm run app`(`ELECTRON_RUN_AS_NODE` に注意 → CLAUDE.md)。UI 開発中は `npm run dev` + ブラウザでも可
+- **通常起動: `start.bat`**(9B llama-server + バックエンド + Electron を一括起動。起動済みのものはスキップ)
+- 停止: `stop.bat`(注意: electron.exe を全て kill するので他の Electron 開発アプリと併用時は個別停止)
+- 開発時の個別起動:
+  1. バックエンド: `npm run server`(= `.venv\Scripts\python -m uvicorn server.api:app --port 8100`)
+  2. アプリ: `npm run build` 済みなら `npm run app`(`ELECTRON_RUN_AS_NODE` に注意 → CLAUDE.md)。UI 開発中は `npm run dev` + ブラウザでも可
+  3. llama-server: `scripts\start-llama-server.ps1 -Model 9b|35b|both`
 
 ## 注意点
 
