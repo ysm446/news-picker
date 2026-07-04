@@ -163,7 +163,7 @@ button {
 
 .board {
   display: flex;
-  gap: 12px;
+  gap: 16px;
   padding: 12px 16px 16px;
   overflow-x: auto;
   flex: 1;
@@ -185,7 +185,7 @@ button {
 }
 
 .column-header {
-  padding: 10px 12px 8px;
+  padding: 12px 14px 10px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -240,7 +240,7 @@ button {
   line-height: 1.5;
   color: var(--text-sub);
   display: -webkit-box;
-  -webkit-line-clamp: 4;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
   cursor: pointer;
@@ -259,10 +259,10 @@ button {
 
 .column-cards {
   overflow-y: auto;
-  padding: 8px;
+  padding: 10px 12px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 8px;
   flex: 1;
   min-height: 0;
 }
@@ -277,11 +277,11 @@ button {
 /* ---------------- カード ---------------- */
 
 .card {
-  position: relative;
-  padding: 8px 10px;
+  padding: 10px 12px;
   background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: var(--radius);
+  border: none;
+  border-left: 2px solid transparent;
+  border-radius: 8px;
   cursor: pointer;
 }
 
@@ -290,11 +290,11 @@ button {
 }
 
 .card-unread {
-  border-left: 2px solid var(--accent);
+  border-left-color: var(--accent);
 }
 
 .card-title {
-  font-size: 13px;
+  font-size: 13.5px;
   line-height: 1.45;
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -302,21 +302,12 @@ button {
   overflow: hidden;
 }
 
-.unread-dot {
-  display: inline-block;
-  width: 6px;
-  height: 6px;
-  margin-right: 6px;
-  margin-bottom: 1px;
-  border-radius: 50%;
-  background: var(--accent);
-}
-
 .card-meta {
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 5px;
+  margin-top: 8px;
+  min-height: 24px;
   font-size: 12px;
   color: var(--text-faint);
 }
@@ -326,11 +317,18 @@ button {
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 140px;
+  min-width: 0;
+  flex-shrink: 1;
+}
+
+.card-time {
+  white-space: nowrap;
 }
 
 .badge-saved {
+  display: inline-flex;
+  align-items: center;
   color: var(--saved);
-  font-size: 11px;
 }
 
 .badge-liked {
@@ -339,27 +337,29 @@ button {
   color: var(--accent);
 }
 
-.card-action {
+.btn-icon.card-action {
   width: 26px;
   height: 24px;
   padding: 0;
   display: flex;
   align-items: center;
   justify-content: center;
+  background: none;
+  border: none;
+}
+
+.btn-icon.card-action:hover:not(:disabled) {
+  background: var(--panel);
 }
 
 .btn-liked {
   color: var(--accent);
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--border));
 }
 
 .card-relevance {
   font-family: Consolas, monospace;
   font-size: 11px;
   color: var(--text-faint);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  padding: 0 4px;
 }
 
 .card-relevance-low {
@@ -368,46 +368,49 @@ button {
 
 .impact {
   font-size: 11px;
-  padding: 0 6px;
+  padding: 1px 7px;
   border-radius: 4px;
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--text-sub) 12%, transparent);
 }
 
 .impact-bullish {
   color: var(--saved);
+  background: color-mix(in srgb, var(--saved) 13%, transparent);
 }
 
 .impact-bearish {
   color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 13%, transparent);
 }
 
 .card-tags {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin-top: 6px;
+  margin-top: 8px;
 }
 
 .tag {
   font-size: 11px;
   color: var(--text-sub);
-  background: var(--panel);
-  border: 1px solid var(--border);
+  background: color-mix(in srgb, var(--text-sub) 12%, transparent);
   border-radius: 4px;
-  padding: 0 6px;
+  padding: 1px 7px;
 }
 
-/* hover 時のみ表示する操作 (重要操作ではないので許容) */
+/* メタ行右端の操作。hover / キーボードフォーカスで表示
+   (opacity 切替なのでスペースは常に確保され、レイアウトが跳ねない) */
 .card-actions {
-  position: absolute;
-  top: 6px;
-  right: 6px;
-  display: none;
+  display: flex;
   gap: 4px;
+  margin-left: auto;
+  flex-shrink: 0;
+  opacity: 0;
 }
 
-.card:hover .card-actions {
-  display: flex;
+.card:hover .card-actions,
+.card:focus-within .card-actions {
+  opacity: 1;
 }
 
 .btn-icon {
