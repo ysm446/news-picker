@@ -972,6 +972,14 @@ button {
   outline-offset: -1px;
 }
 
+/* select はクリックでもフォーカスリングが出るため、:focus ごと上書きして
+   OS 既定の明るいリングを抑える */
+select:focus,
+select:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .form-row textarea {
   resize: vertical;
   line-height: 1.5;
