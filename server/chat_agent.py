@@ -15,17 +15,21 @@ from typing import Callable
 
 from . import config, llm
 from .search_vault import vault_search
-from .search_web import search_news
+from .search_web import search_news, search_text
 
 log = logging.getLogger(__name__)
 
-MAX_TOOL_STEPS = 6
+MAX_TOOL_STEPS = 8
 
 _SYSTEM_PROMPT = """あなたはニュース分析アシスタント。ユーザーの質問に対し、必要に応じてツールで情報を集めながら日本語で答える。
 
 ツールの使い分け:
-- vault_search: ローカルに蓄積したニュース記事庫。まずこちらで関連記事を探す
-- web_search: 記事庫に無い最新情報や補足情報が必要なとき
+- vault_search: ローカルに蓄積したニュース記事庫。ニュース系の質問はまずこちら
+- web_search: 一般の Web 検索。価格・製品・技術情報など記事庫に無い情報
+- news_search: 直近1週間のニュース記事に絞った検索
+
+同じようなクエリで結果が空のときは、言い換えを繰り返しすぎず、
+得られた情報で答えるか「見つからなかった」と答えること。
 
 回答のルール:
 - 根拠にした記事の URL を回答末尾に「出典:」として必ず列挙する
@@ -54,7 +58,24 @@ TOOLS = [
         "type": "function",
         "function": {
             "name": "web_search",
-            "description": "Web のニュースを検索する (過去1週間)。",
+            "description": (
+                "Web を検索する (ニュースに限らない一般検索。"
+                "価格・製品情報・技術情報にも使える)。"
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "検索クエリ (日本語可)"}
+                },
+                "required": ["query"],
+            },
+        },
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "news_search",
+            "description": "Web のニュース記事に絞って検索する (過去1週間)。",
             "parameters": {
                 "type": "object",
                 "properties": {
@@ -71,6 +92,8 @@ def _dispatch_tool(name: str, args: dict) -> list | dict:
     if name == "vault_search":
         return vault_search(args.get("query", ""), top_k=8)
     if name == "web_search":
+        return search_text(args.get("query", ""), max_results=8)
+    if name == "news_search":
         return search_news(args.get("query", ""), max_results=8)
     return {"error": f"unknown tool: {name}"}
 
@@ -130,9 +153,18 @@ def run_chat(
                 }
             )
 
-    emit(
+    # ツール上限到達: 打ち切らず、集めた情報で最終回答を生成させる (ツールなし)
+    msgs.append(
         {
-            "type": "chat.answer",
-            "content": "(ツール呼び出しの上限に達したため、ここまでの情報で回答を打ち切りました)",
+            "role": "user",
+            "content": (
+                "検索回数の上限に達した。これ以上ツールは使えない。"
+                "ここまでに得られた情報だけで最終回答をまとめよ。"
+                "情報が不足している点は不足していると明記すること。"
+            ),
         }
     )
+    result = llm.chat(msgs, base_url=config.LLM_35B_URL, max_tokens=4096, timeout=600)
+    if result["reasoning"]:
+        emit({"type": "chat.thinking", "text": result["reasoning"]})
+    emit({"type": "chat.answer", "content": result["content"]})

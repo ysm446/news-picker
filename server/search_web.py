@@ -70,3 +70,37 @@ def search_news(
             }
         )
     return results
+
+
+def search_text(query: str, max_results: int = 8, region: str = "jp-jp") -> list[dict]:
+    """一般 Web 検索 (ニュースに限らない)。深堀りチャットのツール用。
+
+    価格・製品情報・ドキュメントなどニュース検索では 0 件になりやすい
+    クエリをカバーする。
+    """
+    try:
+        with DDGS() as ddgs:
+            raw = ddgs.text(
+                query, region=region, safesearch="off", max_results=max_results
+            )
+    except Exception as e:  # noqa: BLE001
+        if "no results" in str(e).lower():
+            log.info("search_text no results for %r", query)
+        else:
+            log.warning("search_text failed for %r: %s", query, e)
+        return []
+
+    results = []
+    for r in raw or []:
+        url = r.get("href") or r.get("url")
+        title = (r.get("title") or "").strip()
+        if not url or not title:
+            continue
+        results.append(
+            {
+                "title": title,
+                "url": url,
+                "snippet": (r.get("body") or "").strip() or None,
+            }
+        )
+    return results
