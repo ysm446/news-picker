@@ -79,6 +79,7 @@
 - ファイル・コード検索は Glob / Grep ツールを優先する。シェルで検索する場合は `rg` / `rg --files` を使う。
 - 各コマンドでは、使う値を先に定義してから使う。
 - 例では具体的な実ファイル名ではなく、必要に応じて `path/to/file.ext` のような一般的なパスを使う。
+- **Electron を起動するときは `ELECTRON_RUN_AS_NODE` 環境変数を必ず解除する**(この開発環境のシェルは VSCode から同変数を継承しており、付いたままだと Electron が素の Node.js として動き `app` が undefined になる)。
 
 ## Python 環境
 

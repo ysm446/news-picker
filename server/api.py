@@ -22,6 +22,7 @@ from .sse import EventBus, format_sse
 from .workers.ingest import IngestWorker
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(name)s %(message)s")
+logging.getLogger("primp").setLevel(logging.WARNING)  # ddgs の HTTP ログを抑制
 
 bus = EventBus()
 workers: dict[str, IngestWorker] = {}

@@ -1,11 +1,11 @@
 # progress — 進捗と注意点
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 23:02
+更新日時: 2026-07-04 23:21
 
 ## 現在の状態
 
-**フェーズ2(取り込み)のバックエンド完了。** 検索 → dedup → SSE 配信までエンドツーエンド検証済み。ダッシュボード UI(Electron + React)は未着手なので、次は UI かフェーズ3(詳細生成)のどちらかから。
+**フェーズ2(取り込み)完了。** ダッシュボード UI(Electron + React)まで実装し、実記事が取り込まれて画面に並ぶところまで動作確認済み。次はフェーズ3(詳細生成)。
 
 ## 完了済み
 
@@ -34,11 +34,20 @@
   - `server/api.py`: spec §10 の API(categories / articles / save / hide / brief / events / rebuild-index)+ 開発用 `/admin/ingest-now`
   - `tests/test_phase2_smoke.py`: uvicorn 実起動での E2E(ライブ ddgs 取り込み2件 → SSE article.new → save/hide → rebuild)全パス
 
+- **ダッシュボード UI(Electron + React + Vite)**:
+  - カテゴリ列(kanban 風)、カード(タイトル / ソース / 相対時刻 / 未読バッジ / hover で保存・非表示)、列ヘッダにブリーフ表示枠、SSE 接続インジケータ
+  - `electron/main.cjs`(dist があれば dist、なければ vite dev を読む)、`src/`(React 19 + TS)、ダークテーマ(docs/rules/electron-design-rules.md 準拠)
+  - 実機確認: バックエンド起動 → 実記事7件取り込み → Electron ウィンドウで表示
+
 ## 未完了(次にやること)
 
-- ダッシュボード UI(Electron + React): カテゴリ列にタイトルが流れるところまで(フェーズ2の残り)。
-- フェーズ3(詳細生成): EnrichWorker + 詳細パネル + MD 書き出し + 埋め込み/FTS。
+- フェーズ3(詳細生成): EnrichWorker + 詳細パネル + MD 書き出し + 埋め込み/FTS。カードクリックは現状 URL を開くだけ(TODO コメント箇所)。
 - 以降は [plan.md](plan.md) のフェーズ順。
+
+## 起動方法(開発)
+
+1. バックエンド: `npm run server`(= `.venv\Scripts\python -m uvicorn server.api:app --port 8100`)
+2. アプリ: `npm run build` 済みなら `npm run app`(`ELECTRON_RUN_AS_NODE` に注意 → CLAUDE.md)。UI 開発中は `npm run dev` + ブラウザでも可
 
 ## 注意点
 

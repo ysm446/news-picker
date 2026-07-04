@@ -1,7 +1,7 @@
 # plan — 実装方針と優先順位
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-04 23:02
+更新日時: 2026-07-04 23:21
 
 仕様の詳細は [../news-picker-spec.md](../news-picker-spec.md) を参照。ここでは実装の順序と判断を管理する。
 
@@ -52,4 +52,5 @@
   - **tombstone は vault 側(`_tombstones.jsonl`)にも永続化**する。DB だけに持つと rebuild で削除情報が消えて記事が復活するため。「MD が真実の源」の原則を削除情報にも適用した形。
   - Python は `.venv`(Python 3.13)で管理。依存は `server/requirements.txt`。
 - 2026-07-04: フェーズ2のスケジューラは **APScheduler ではなく asyncio タスク**(FastAPI lifespan 内でカテゴリごとに常駐ループ)で実装した。依存が減り、ポーリング + ジッタ程度なら十分。トレイ常駐(フェーズ7)の要件が出た時点で再検討する。
+- 2026-07-04: ddgs の検索期間は **timelimit="w"(1週間)を既定**にした。"d"(24時間)はニッチな日本語クエリで0件になりやすく、DDG news バックエンドは短時間の連続利用で 403 を返すことも確認(Bing/Yahoo フォールバックは ddgs が自動で行う)。重複取り込みは dedup が吸収するので広めで問題ない。「全バックエンド0件」は正常系として INFO ログ扱い。
 - 2026-07-04: **thinking オーバーヘッドを実測**(仕様 §13 の懸念が的中)。Ornith 9B/35B とも一言の回答に思考 ~1,000 トークンを消費し、max_tokens=512 では本文が空になる。フェーズ3の EnrichWorker では (a) `chat_template_kwargs: {enable_thinking: false}` での思考無効化(lm-chat の llm_proxy パターン)か (b) 短思考を強制する system prompt + 十分な max_tokens が必須。

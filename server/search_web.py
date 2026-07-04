@@ -30,9 +30,13 @@ def search_news(
     query: str,
     max_results: int = 20,
     region: str = "jp-jp",
-    timelimit: str = "d",
+    timelimit: str = "w",
 ) -> list[dict]:
-    """ニュース検索。結果は新しい順とは限らない点に注意 (dedup 側で吸収)。"""
+    """ニュース検索。結果は新しい順とは限らない点に注意 (dedup 側で吸収)。
+
+    timelimit は既定で "w" (1週間)。"d" だとニッチな日本語クエリで 0 件に
+    なりやすい。重複は dedup が吸収するので広めに取る。
+    """
     try:
         with DDGS() as ddgs:
             raw = ddgs.news(
@@ -43,7 +47,11 @@ def search_news(
                 max_results=max_results,
             )
     except Exception as e:  # noqa: BLE001 - 検索失敗でワーカーを殺さない
-        log.warning("search_news failed for %r: %s", query, e)
+        if "no results" in str(e).lower():
+            # 全バックエンド 0 件は正常系 (次のポーリングで別クエリを試す)
+            log.info("search_news no results for %r", query)
+        else:
+            log.warning("search_news failed for %r: %s", query, e)
         return []
 
     results = []

@@ -1,0 +1,41 @@
+import type { Article, Brief, CategoryInfo, SseEvent } from "./types";
+
+export const API_BASE = "http://127.0.0.1:8100";
+
+async function fetchJson<T>(path: string, init?: RequestInit): Promise<T> {
+  const res = await fetch(`${API_BASE}${path}`, init);
+  if (!res.ok) throw new Error(`${res.status} ${path}`);
+  return (await res.json()) as T;
+}
+
+export const api = {
+  categories: () => fetchJson<CategoryInfo[]>("/categories"),
+  articles: (category: string, limit = 60) =>
+    fetchJson<Article[]>(`/articles?category=${encodeURIComponent(category)}&limit=${limit}`),
+  brief: (category: string) => fetchJson<Brief>(`/categories/${encodeURIComponent(category)}/brief`),
+  save: (id: number) => fetchJson(`/articles/${id}/save`, { method: "POST" }),
+  hide: (id: number) => fetchJson(`/articles/${id}/hide`, { method: "POST" }),
+};
+
+/** SSE 購読。切断時は EventSource が自動再接続する。 */
+export function openEvents(onEvent: (ev: SseEvent) => void, onStateChange: (ok: boolean) => void) {
+  const es = new EventSource(`${API_BASE}/events`);
+  es.onopen = () => onStateChange(true);
+  es.onerror = () => onStateChange(false);
+  es.onmessage = (msg) => {
+    try {
+      onEvent(JSON.parse(msg.data) as SseEvent);
+    } catch {
+      // 不正なイベントは無視
+    }
+  };
+  return es;
+}
+
+export function relativeTime(epoch: number): string {
+  const sec = Math.max(0, Math.floor(Date.now() / 1000 - epoch));
+  if (sec < 60) return "たった今";
+  if (sec < 3600) return `${Math.floor(sec / 60)}分前`;
+  if (sec < 86400) return `${Math.floor(sec / 3600)}時間前`;
+  return `${Math.floor(sec / 86400)}日前`;
+}
