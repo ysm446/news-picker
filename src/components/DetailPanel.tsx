@@ -5,13 +5,15 @@ interface Props {
   article: Article | null;
   loading: boolean;
   error: string | null;
+  translate: boolean;
   onClose: () => void;
   onDeepDive: (article: Article) => void;
 }
 
-export function DetailPanel({ article, loading, error, onClose, onDeepDive }: Props) {
+export function DetailPanel({ article, loading, error, translate, onClose, onDeepDive }: Props) {
   if (!article) return null;
   const enriched = article.enriched_at != null;
+  const translated = translate && article.title_ja && article.title_ja !== article.title;
   return (
     <aside className="detail-panel">
       <header className="detail-header">
@@ -21,7 +23,8 @@ export function DetailPanel({ article, loading, error, onClose, onDeepDive }: Pr
         </button>
       </header>
       <div className="detail-body">
-        <h2 className="detail-title">{article.title}</h2>
+        <h2 className="detail-title">{translated ? article.title_ja : article.title}</h2>
+        {translated && <p className="detail-original">{article.title}</p>}
         <div className="detail-meta">
           <span>{article.source ?? "-"}</span>
           {article.impact && (

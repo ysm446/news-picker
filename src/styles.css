@@ -476,6 +476,13 @@ button {
   margin: 0 0 8px;
 }
 
+.detail-original {
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-faint);
+  margin: -4px 0 8px;
+}
+
 .detail-meta {
   display: flex;
   align-items: center;

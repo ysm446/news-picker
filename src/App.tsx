@@ -380,6 +380,7 @@ export default function App() {
           article={selected}
           loading={selected != null && selected.enriched_at == null}
           error={detailError}
+          translate={prefs?.translate_titles ?? false}
           onClose={onCloseDetail}
           onDeepDive={onDeepDive}
         />
