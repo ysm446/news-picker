@@ -1,0 +1,52 @@
+# --- モデル (GGUF は数GB〜数十GB。Git 管理しない) ---
+models/
+
+# --- 実行バイナリ (scripts/install-llama-server.ps1 で導入) ---
+runtime/
+
+# --- アプリ生成データ (news-vault のみ MD 一次データとして git 管理) ---
+data/*
+!data/news-vault/
+
+# --- Node / Electron ---
+node_modules/
+dist/
+out/
+release/
+.vite/
+*.tsbuildinfo
+
+# --- Python ---
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# --- 実行時データ (SQLite は MD から再構築可能な派生索引) ---
+*.sqlite
+*.sqlite3
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+logs/
+*.log
+
+# --- 秘密情報 ---
+.env
+.env.*
+!.env.example
+
+# --- OS / エディタ ---
+.DS_Store
+Thumbs.db
+desktop.ini
+.idea/
+.vscode/
+*.swp
+
+# --- Claude Code ローカル設定 ---
+.claude/settings.local.json
