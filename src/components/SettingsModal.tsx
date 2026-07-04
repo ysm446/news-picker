@@ -22,22 +22,28 @@ const EMPTY: CategoryConfig = {
 };
 
 export function SettingsModal({ categories, initialEditId, onClose, onChanged }: Props) {
-  const [editing, setEditing] = useState<CategoryConfig | null>(() => {
-    const target = initialEditId ? categories.find((c) => c.id === initialEditId) : null;
-    return target ? { ...target } : null;
-  });
+  const initial = initialEditId ? categories.find((c) => c.id === initialEditId) : null;
+  const [editing, setEditing] = useState<CategoryConfig | null>(initial ? { ...initial } : null);
+  // 複数行/カンマ区切りの入力欄は生テキストで保持し、保存時にだけ配列へ変換する
+  // (入力のたびに正規化すると改行やスペースが打てなくなるため)
+  const [queryText, setQueryText] = useState(initial ? initial.query_templates.join("\n") : "");
+  const [impactText, setImpactText] = useState(initial ? initial.impact_axis.join(", ") : "");
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const startNew = () => {
     setEditing({ ...EMPTY });
+    setQueryText("");
+    setImpactText(EMPTY.impact_axis.join(", "));
     setIsNew(true);
     setError(null);
   };
 
   const startEdit = (c: CategoryInfo) => {
     setEditing({ ...c });
+    setQueryText(c.query_templates.join("\n"));
+    setImpactText(c.impact_axis.join(", "));
     setIsNew(false);
     setError(null);
   };
@@ -46,11 +52,16 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
     if (!editing) return;
     setBusy(true);
     setError(null);
+    const payload: CategoryConfig = {
+      ...editing,
+      query_templates: queryText.split("\n").map((s) => s.trim()).filter(Boolean),
+      impact_axis: impactText.split(",").map((s) => s.trim()).filter(Boolean),
+    };
     try {
       if (isNew) {
-        await api.createCategory(editing);
+        await api.createCategory(payload);
       } else {
-        await api.updateCategory(editing.id, editing);
+        await api.updateCategory(payload.id, payload);
       }
       setEditing(null);
       onChanged();
@@ -133,14 +144,9 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
                 <span>検索クエリ (1行1クエリ。{"{month}"} は現在の年月に展開)</span>
                 <textarea
                   rows={4}
-                  value={editing.query_templates.join("\n")}
+                  value={queryText}
                   placeholder={"HBM 需給 {month}\nDRAM 価格"}
-                  onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      query_templates: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
-                    })
-                  }
+                  onChange={(e) => setQueryText(e.target.value)}
                 />
               </label>
               <div className="form-grid">
@@ -170,14 +176,9 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
               <label className="form-row">
                 <span>impact の選択肢 (カンマ区切り)</span>
                 <input
-                  value={editing.impact_axis.join(", ")}
+                  value={impactText}
                   placeholder="bullish, neutral, bearish"
-                  onChange={(e) =>
-                    setEditing({
-                      ...editing,
-                      impact_axis: e.target.value.split(",").map((s) => s.trim()).filter(Boolean),
-                    })
-                  }
+                  onChange={(e) => setImpactText(e.target.value)}
                 />
               </label>
               <label className="form-row">
@@ -194,7 +195,7 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
               <button className="btn-icon" onClick={() => setEditing(null)}>キャンセル</button>
               <button
                 className="btn-primary"
-                disabled={busy || !editing.id || !editing.label || editing.query_templates.length === 0}
+                disabled={busy || !editing.id || !editing.label || queryText.trim() === ""}
                 onClick={() => void save()}
               >
                 {isNew ? "追加" : "保存"}
