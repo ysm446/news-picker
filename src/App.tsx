@@ -7,6 +7,35 @@ import { DetailPanel } from "./components/DetailPanel";
 
 type ArticlesByCat = Record<string, Article[]>;
 
+interface Filters {
+  range: "all" | "1" | "3" | "7";
+  impact: string;
+  entity: string;
+  savedOnly: boolean;
+}
+
+const NO_FILTERS: Filters = { range: "all", impact: "", entity: "", savedOnly: false };
+
+function applyFilters(list: Article[], f: Filters): Article[] {
+  if (f === NO_FILTERS) return list;
+  const cutoff = f.range === "all" ? 0 : Date.now() / 1000 - Number(f.range) * 86400;
+  const q = f.entity.trim().toLowerCase();
+  return list.filter((a) => {
+    if (f.savedOnly && a.status !== "saved") return false;
+    if (f.impact && a.impact !== f.impact) return false;
+    if (a.fetched_at < cutoff) return false;
+    if (q) {
+      const hit =
+        a.title.toLowerCase().includes(q) ||
+        a.entities?.tickers.some((t) => t.toLowerCase().includes(q)) ||
+        a.entities?.companies.some((c) => c.toLowerCase().includes(q)) ||
+        a.tags?.some((t) => t.toLowerCase().includes(q));
+      if (!hit) return false;
+    }
+    return true;
+  });
+}
+
 export default function App() {
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [articles, setArticles] = useState<ArticlesByCat>({});
@@ -16,6 +45,7 @@ export default function App() {
   const [selected, setSelected] = useState<Article | null>(null);
   const [detailError, setDetailError] = useState<string | null>(null);
   const [chat, setChat] = useState<{ articleId: number | null; title: string | null } | null>(null);
+  const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const esRef = useRef<EventSource | null>(null);
   const selectedIdRef = useRef<number | null>(null);
   selectedIdRef.current = selected?.id ?? null;
@@ -133,6 +163,15 @@ export default function App() {
     setChat({ articleId: article.id, title: article.title });
   }, []);
 
+  const onReloadConfig = useCallback(() => {
+    api
+      .reloadConfig()
+      .then(() => loadAll())
+      .catch(console.error);
+  }, [loadAll]);
+
+  const impactOptions = [...new Set(categories.flatMap((c) => c.impact_axis))];
+
   return (
     <div className="app">
       <header className="topbar">
@@ -144,11 +183,56 @@ export default function App() {
           >
             チャット
           </button>
+          <button className="btn-icon" onClick={onReloadConfig} title="categories.yaml を再読み込み">
+            設定再読込
+          </button>
           <span className={`conn ${connected ? "conn-ok" : "conn-ng"}`}>
             {connected ? "接続中" : "再接続中..."}
           </span>
         </div>
       </header>
+      <div className="filter-bar">
+        <select
+          className="filter-select"
+          value={filters.range}
+          onChange={(e) => setFilters({ ...filters, range: e.target.value as Filters["range"] })}
+        >
+          <option value="all">全期間</option>
+          <option value="1">24時間</option>
+          <option value="3">3日</option>
+          <option value="7">1週間</option>
+        </select>
+        <select
+          className="filter-select"
+          value={filters.impact}
+          onChange={(e) => setFilters({ ...filters, impact: e.target.value })}
+        >
+          <option value="">impact: 全て</option>
+          {impactOptions.map((v) => (
+            <option key={v} value={v}>{v}</option>
+          ))}
+        </select>
+        <input
+          className="filter-input"
+          type="search"
+          placeholder="ティッカー / 企業名 / タグで絞り込み (例: NVDA)"
+          value={filters.entity}
+          onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
+        />
+        <label className="filter-check">
+          <input
+            type="checkbox"
+            checked={filters.savedOnly}
+            onChange={(e) => setFilters({ ...filters, savedOnly: e.target.checked })}
+          />
+          保存のみ
+        </label>
+        {filters !== NO_FILTERS && (
+          <button className="btn-icon" onClick={() => setFilters(NO_FILTERS)}>
+            クリア
+          </button>
+        )}
+      </div>
       {error && (
         <div className="error-banner">
           {error}
@@ -160,7 +244,7 @@ export default function App() {
           <CategoryColumn
             key={c.id}
             category={c}
-            articles={articles[c.id] ?? []}
+            articles={applyFilters(articles[c.id] ?? [], filters)}
             brief={briefs[c.id] ?? null}
             onSave={onSave}
             onHide={onHide}

@@ -16,6 +16,7 @@ export const api = {
   brief: (category: string) => fetchJson<Brief>(`/categories/${encodeURIComponent(category)}/brief`),
   save: (id: number) => fetchJson(`/articles/${id}/save`, { method: "POST" }),
   hide: (id: number) => fetchJson(`/articles/${id}/hide`, { method: "POST" }),
+  reloadConfig: () => fetchJson<{ categories: string[] }>("/admin/reload-config", { method: "POST" }),
 };
 
 /** SSE 購読。切断時は EventSource が自動再接続する。 */

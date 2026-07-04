@@ -34,6 +34,31 @@ workers: dict[str, IngestWorker] = {}
 enricher: EnrichWorker | None = None
 briefer: BriefWorker | None = None
 cleaner = CleanupWorker()
+_loop_tasks: list[asyncio.Task] = []
+
+
+def _build_workers(categories: list[config.Category]) -> None:
+    workers.clear()
+    for cat in categories:
+        workers[cat.id] = IngestWorker(cat, bus)
+    if enricher is not None:
+        enricher.categories = {c.id: c for c in categories}
+    if briefer is not None:
+        briefer.categories = categories
+
+
+def _start_loops() -> None:
+    if os.environ.get("NEWS_PICKER_NO_INGEST"):
+        return
+    _loop_tasks.extend(asyncio.ensure_future(w.run()) for w in workers.values())
+    _loop_tasks.append(asyncio.ensure_future(briefer.run()))
+    _loop_tasks.append(asyncio.ensure_future(cleaner.run()))
+
+
+def _stop_loops() -> None:
+    for t in _loop_tasks:
+        t.cancel()
+    _loop_tasks.clear()
 
 
 def _load_json(value):
@@ -51,18 +76,14 @@ def _article_to_dict(row) -> dict:
 async def lifespan(app: FastAPI):
     global enricher, briefer
     categories = config.load_categories()
-    for cat in categories:
-        workers[cat.id] = IngestWorker(cat, bus)
     enricher = EnrichWorker(bus, categories)
     briefer = BriefWorker(bus, categories)
-    tasks: list[asyncio.Task] = [asyncio.create_task(enricher.run())]
-    if not os.environ.get("NEWS_PICKER_NO_INGEST"):
-        tasks += [asyncio.create_task(w.run()) for w in workers.values()]
-        tasks.append(asyncio.create_task(briefer.run()))
-        tasks.append(asyncio.create_task(cleaner.run()))
+    _build_workers(categories)
+    enrich_task = asyncio.ensure_future(enricher.run())
+    _start_loops()
     yield
-    for t in tasks:
-        t.cancel()
+    _stop_loops()
+    enrich_task.cancel()
 
 
 app = FastAPI(title="news-picker", lifespan=lifespan)
@@ -329,3 +350,13 @@ async def cleanup_now() -> dict:
     """開発用: 日次を待たずに自動整理を実行する。"""
     purged = await asyncio.to_thread(cleaner.cleanup_once)
     return {"purged": purged}
+
+
+@app.post("/admin/reload-config")
+async def reload_config() -> dict:
+    """categories.yaml を再読み込みし、取り込みワーカーを再構築する。"""
+    categories = config.load_categories()
+    _stop_loops()
+    _build_workers(categories)
+    _start_loops()
+    return {"categories": [c.id for c in categories]}
