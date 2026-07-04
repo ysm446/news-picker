@@ -34,6 +34,7 @@ RETENTION_DAYS = int(os.environ.get("NEWS_PICKER_RETENTION_DAYS", "14"))
 class Category:
     id: str
     label: str
+    description: str = ""  # カテゴリの狙い。キュレーション (採点) の基準にも渡される
     keywords: list[str] = field(default_factory=list)
     query_templates: list[str] = field(default_factory=list)
     poll_interval_sec: int = 300

@@ -1,6 +1,7 @@
 export interface CategoryConfig {
   id: string;
   label: string;
+  description: string;
   keywords: string[];
   query_templates: string[];
   poll_interval_sec: number;
@@ -63,7 +64,7 @@ export type SseEvent =
   | { type: "article.enrich_failed"; id: number; detail: string }
   | {
       type: "article.curated";
-      scores: { id: number; relevance: number; title_ja?: string | null }[];
+      scores: { id: number; relevance: number | null; title_ja?: string | null }[];
     }
   | { type: "article.status_changed"; id: number; status: Article["status"] }
   | { type: "category.brief_updated"; category: string; brief: string; updated_at: number };

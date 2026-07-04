@@ -104,6 +104,7 @@ app.add_middleware(
 class CategoryModel(BaseModel):
     id: str
     label: str
+    description: str = ""
     keywords: list[str] = []
     query_templates: list[str] = []
     poll_interval_sec: int = 600
@@ -139,6 +140,7 @@ def list_categories() -> list[dict]:
         {
             "id": c.id,
             "label": c.label,
+            "description": c.description,
             "keywords": c.keywords,
             "query_templates": c.query_templates,
             "poll_interval_sec": c.poll_interval_sec,

@@ -200,6 +200,14 @@ def set_curation(conn: sqlite3.Connection, results: dict[int, dict]) -> None:
         )
 
 
+def set_title_ja(conn: sqlite3.Connection, translations: dict[int, str]) -> None:
+    with conn:
+        conn.executemany(
+            "UPDATE articles SET title_ja = ? WHERE id = ?",
+            [(title_ja, article_id) for article_id, title_ja in translations.items()],
+        )
+
+
 def add_tombstone(
     conn: sqlite3.Connection,
     h: str,

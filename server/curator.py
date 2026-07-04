@@ -9,10 +9,21 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 
 from . import config, llm
 
 log = logging.getLogger(__name__)
+
+_KANA = re.compile(r"[ぁ-んァ-ヶ]")
+
+
+def needs_translation(title: str) -> bool:
+    """日本語見出しでない可能性が高いか (かな無し + ASCII 過半)。"""
+    if _KANA.search(title):
+        return False
+    ascii_ratio = sum(c.isascii() for c in title) / max(1, len(title))
+    return ascii_ratio > 0.5
 
 _SYSTEM_PROMPT = """あなたはニュースキュレーター。指定カテゴリの購読者にとっての各記事の重要度を 0〜100 で採点する。
 
@@ -76,17 +87,18 @@ def score_articles(
         )
         task = "以下の記事 (id: タイトル — 抜粋) を全て採点し、必要なら日本語訳を付けよ。"
 
+    category_desc = f"カテゴリ: {category.label}\n"
+    if category.description:
+        category_desc += f"カテゴリの説明・採点基準: {category.description}\n"
+    category_desc += f"カテゴリのキーワード: {', '.join(category.keywords) or 'なし'}\n"
+
     try:
         result = llm.chat(
             [
                 {"role": "system", "content": system_prompt},
                 {
                     "role": "user",
-                    "content": (
-                        f"カテゴリ: {category.label}\n"
-                        f"カテゴリのキーワード: {', '.join(category.keywords) or 'なし'}\n\n"
-                        f"{task}\n\n" + "\n".join(lines)
-                    ),
+                    "content": f"{category_desc}\n{task}\n\n" + "\n".join(lines),
                 },
             ],
             base_url=config.LLM_9B_URL,
@@ -110,4 +122,55 @@ def score_articles(
         return results
     except Exception as e:  # noqa: BLE001 - 採点失敗は未採点として扱う (記事は普通に表示される)
         log.warning("score_articles failed for %s: %s", category.id, e)
+        return {}
+
+
+_TRANSLATE_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "translations": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "id": {"type": "integer"},
+                    "title_ja": {"type": "string"},
+                },
+                "required": ["id", "title_ja"],
+            },
+        }
+    },
+    "required": ["translations"],
+}
+
+
+def translate_titles(articles: list[dict]) -> dict[int, str]:
+    """見出しの翻訳専用パス。採点時に 9B が title_ja を空で返した際の再試行に使う。"""
+    if not articles:
+        return {}
+    lines = [f"{a['id']}: {a['title']}" for a in articles]
+    try:
+        result = llm.chat(
+            [
+                {
+                    "role": "system",
+                    "content": "あなたはニュース翻訳者。各見出しを自然で簡潔な日本語に訳す。",
+                },
+                {"role": "user", "content": "以下の見出しを全て日本語訳せよ。\n\n" + "\n".join(lines)},
+            ],
+            base_url=config.LLM_9B_URL,
+            response_json_schema=_TRANSLATE_SCHEMA,
+            enable_thinking=False,
+            max_tokens=2000,
+            timeout=180,
+        )
+        data = json.loads(result["content"])
+        valid_ids = {a["id"] for a in articles}
+        return {
+            int(t["id"]): t["title_ja"].strip()
+            for t in data["translations"]
+            if int(t["id"]) in valid_ids and t["title_ja"].strip()
+        }
+    except Exception as e:  # noqa: BLE001
+        log.warning("translate_titles failed: %s", e)
         return {}

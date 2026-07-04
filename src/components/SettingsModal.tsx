@@ -12,6 +12,7 @@ interface Props {
 const EMPTY: CategoryConfig = {
   id: "",
   label: "",
+  description: "",
   keywords: [],
   query_templates: [],
   poll_interval_sec: 600,
@@ -236,6 +237,15 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
                   value={editing.label}
                   placeholder="メモリ半導体"
                   onChange={(e) => setEditing({ ...editing, label: e.target.value })}
+                />
+              </label>
+              <label className="form-row">
+                <span>説明・採点基準 (任意。キュレーションの関連度判定に使われる)</span>
+                <textarea
+                  rows={2}
+                  value={editing.description}
+                  placeholder="例: オープンモデル限定。クローズドな商用サービスの話題は関連度を低く"
+                  onChange={(e) => setEditing({ ...editing, description: e.target.value })}
                 />
               </label>
               <label className="form-row">

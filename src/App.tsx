@@ -201,7 +201,11 @@ export default function App() {
           next[cat] = list.map((a) => {
             const s = byId.get(a.id);
             return s
-              ? { ...a, relevance: s.relevance, title_ja: s.title_ja ?? a.title_ja }
+              ? {
+                  ...a,
+                  relevance: s.relevance ?? a.relevance,
+                  title_ja: s.title_ja ?? a.title_ja,
+                }
               : a;
           });
         }

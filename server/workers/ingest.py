@@ -84,6 +84,19 @@ class IngestWorker:
             conn = store.connect()
             try:
                 store.set_curation(conn, results)
+                if translate:
+                    # 採点時に 9B が翻訳をサボることがあるため、漏れを翻訳専用パスで補完
+                    missed = [
+                        a for a in inserted
+                        if curator.needs_translation(a["title"])
+                        and not (results.get(a["id"]) or {}).get("title_ja")
+                    ]
+                    translations = curator.translate_titles(missed)
+                    if translations:
+                        store.set_title_ja(conn, translations)
+                        for article_id, title_ja in translations.items():
+                            entry = results.setdefault(article_id, {"score": None})
+                            entry["title_ja"] = title_ja
             finally:
                 conn.close()
         return results
