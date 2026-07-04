@@ -119,14 +119,14 @@ def run_chat(
         }
     )
 
-    msgs: list[dict] = [{"role": "system", "content": _SYSTEM_PROMPT}]
+    # システムメッセージは1つに統合する (Qwen3 系テンプレートは複数 system を
+    # 許さず、2つ目があると llama-server が 400 を返す)
+    system_content = _SYSTEM_PROMPT
     if article_md:
-        msgs.append(
-            {
-                "role": "system",
-                "content": f"ユーザーが現在開いている記事 (深堀り対象):\n\n{article_md}",
-            }
+        system_content += (
+            f"\n\n# ユーザーが現在開いている記事 (深堀り対象)\n\n{article_md}"
         )
+    msgs: list[dict] = [{"role": "system", "content": system_content}]
     msgs += messages
 
     def stream_turn(tools: list[dict] | None) -> dict:

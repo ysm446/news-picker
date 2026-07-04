@@ -1,5 +1,6 @@
 import type { Article } from "../types";
 import { relativeTime } from "../api";
+import { BookmarkIcon, ThumbsDownIcon, ThumbsUpIcon, XIcon } from "./icons";
 
 interface Props {
   article: Article;
@@ -39,7 +40,11 @@ export function ArticleCard({
         )}
         {article.impact && <span className={`impact impact-${article.impact}`}>{article.impact}</span>}
         {article.status === "saved" && <span className="badge-saved">保存済み</span>}
-        {article.rating === 1 && <span className="badge-liked" title="👍 評価済み">👍</span>}
+        {article.rating === 1 && (
+          <span className="badge-liked" title="良い記事と評価済み">
+            <ThumbsUpIcon size={11} filled />
+          </span>
+        )}
       </div>
       {article.tags && article.tags.length > 0 && (
         <div className="card-tags">
@@ -50,36 +55,37 @@ export function ArticleCard({
       )}
       <div className="card-actions" onClick={(e) => e.stopPropagation()}>
         <button
-          className="btn-icon"
+          className="btn-icon card-action"
           aria-label="保存"
+          title="保存 (パージ対象外になる)"
           disabled={article.status === "saved"}
           onClick={() => onSave(article.id)}
         >
-          保存
+          <BookmarkIcon filled={article.status === "saved"} />
         </button>
         <button
-          className={`btn-icon${article.rating === 1 ? " btn-liked" : ""}`}
+          className={`btn-icon card-action${article.rating === 1 ? " btn-liked" : ""}`}
           aria-label="良い記事"
           title="良い記事 (キュレーションの学習に使われる)"
           onClick={() => onLike(article.id)}
         >
-          👍
+          <ThumbsUpIcon filled={article.rating === 1} />
         </button>
         <button
-          className="btn-icon btn-danger"
+          className="btn-icon card-action btn-danger"
           aria-label="興味なし"
           title="興味なし (非表示 + 学習の負例になる)"
           onClick={() => onDismiss(article.id)}
         >
-          興味なし
+          <ThumbsDownIcon />
         </button>
         <button
-          className="btn-icon btn-danger"
+          className="btn-icon card-action btn-danger"
           aria-label="非表示"
           title="非表示のみ (学習には使われにくい)"
           onClick={() => onHide(article.id)}
         >
-          ✕
+          <XIcon />
         </button>
       </div>
     </div>

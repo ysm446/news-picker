@@ -17,6 +17,15 @@ from . import config
 DEFAULT_SAMPLING = {"temperature": 0.6, "top_p": 0.95, "top_k": 20}
 
 
+def _raise_with_body(e: urllib.error.HTTPError) -> None:
+    """llama-server のエラー本文 (原因) を含めて投げ直す。"""
+    try:
+        body = e.read().decode("utf-8", errors="replace")[:500]
+    except Exception:  # noqa: BLE001
+        body = ""
+    raise RuntimeError(f"llama-server {e.code}: {body or e.reason}") from e
+
+
 def health(base_url: str, timeout: float = 2.0) -> bool:
     try:
         req = urllib.request.Request(f"{base_url}/health")
@@ -67,8 +76,11 @@ def chat(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    with urllib.request.urlopen(req, timeout=timeout) as res:
-        data = json.loads(res.read().decode("utf-8"))
+    try:
+        with urllib.request.urlopen(req, timeout=timeout) as res:
+            data = json.loads(res.read().decode("utf-8"))
+    except urllib.error.HTTPError as e:
+        _raise_with_body(e)
 
     message = data["choices"][0]["message"]
     return {
@@ -121,7 +133,11 @@ def chat_stream(
     reasoning_parts: list[str] = []
     tool_calls: dict[int, dict] = {}
 
-    with urllib.request.urlopen(req, timeout=timeout) as res:
+    try:
+        res = urllib.request.urlopen(req, timeout=timeout)
+    except urllib.error.HTTPError as e:
+        _raise_with_body(e)
+    with res:
         for raw in res:
             line = raw.decode("utf-8").strip()
             if not line.startswith("data: "):
