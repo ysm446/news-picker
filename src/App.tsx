@@ -74,7 +74,7 @@ export default function App() {
       return !prev;
     });
   }, []);
-  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState<{ editId: string | null } | null>(null);
   const esRef = useRef<EventSource | null>(null);
   const selectedIdRef = useRef<number | null>(null);
   const loadedRef = useRef(false);
@@ -240,7 +240,7 @@ export default function App() {
           >
             チャット
           </button>
-          <button className="btn-icon" onClick={() => setShowSettings(true)}>
+          <button className="btn-icon" onClick={() => setSettings({ editId: null })}>
             設定
           </button>
           <button className="btn-icon" onClick={onReloadConfig} title="categories.yaml を再読み込み">
@@ -327,6 +327,7 @@ export default function App() {
             onSave={onSave}
             onHide={onHide}
             onOpen={onOpen}
+            onSettings={(id) => setSettings({ editId: id })}
           />
         ))}
       </main>
@@ -346,10 +347,11 @@ export default function App() {
           onClose={() => setChat(null)}
         />
       )}
-      {showSettings && (
+      {settings !== null && (
         <SettingsModal
           categories={categories}
-          onClose={() => setShowSettings(false)}
+          initialEditId={settings.editId}
+          onClose={() => setSettings(null)}
           onChanged={() => void loadAll()}
         />
       )}

@@ -4,6 +4,7 @@ import type { CategoryConfig, CategoryInfo } from "../types";
 
 interface Props {
   categories: CategoryInfo[];
+  initialEditId?: string | null; // 指定時はそのカテゴリの編集画面を直接開く
   onClose: () => void;
   onChanged: () => void;
 }
@@ -20,8 +21,11 @@ const EMPTY: CategoryConfig = {
   summary_prompt: "",
 };
 
-export function SettingsModal({ categories, onClose, onChanged }: Props) {
-  const [editing, setEditing] = useState<CategoryConfig | null>(null);
+export function SettingsModal({ categories, initialEditId, onClose, onChanged }: Props) {
+  const [editing, setEditing] = useState<CategoryConfig | null>(() => {
+    const target = initialEditId ? categories.find((c) => c.id === initialEditId) : null;
+    return target ? { ...target } : null;
+  });
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
