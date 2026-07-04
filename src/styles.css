@@ -953,7 +953,7 @@ button {
 
 .meter-value {
   min-width: 52px;
-  text-align: right;
+  text-align: left; /* バーの直後に数値を寄せる (右揃えだと短い値で間が空く) */
 }
 
 .lamp {
