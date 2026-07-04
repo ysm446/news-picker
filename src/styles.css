@@ -249,6 +249,18 @@ button {
   -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  cursor: pointer;
+}
+
+.column-brief:hover {
+  color: var(--text);
+}
+
+.column-brief-open {
+  display: block;
+  -webkit-line-clamp: unset;
+  max-height: 40vh;
+  overflow-y: auto;
 }
 
 .column-cards {

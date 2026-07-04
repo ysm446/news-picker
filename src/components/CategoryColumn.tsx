@@ -1,3 +1,4 @@
+import { useState } from "react";
 import type { Article, CategoryInfo } from "../types";
 import { ArticleCard } from "./ArticleCard";
 import { GearIcon } from "./icons";
@@ -17,6 +18,7 @@ export function CategoryColumn({
   category, articles, brief, translate, onSave, onHide, onOpen, onSettings,
 }: Props) {
   const unread = articles.filter((a) => a.status === "new").length;
+  const [briefOpen, setBriefOpen] = useState(false);
   return (
     <section className="column">
       <header className="column-header">
@@ -32,7 +34,13 @@ export function CategoryColumn({
             <GearIcon />
           </button>
         </div>
-        <p className="column-brief">{brief ?? "まだ要約はありません"}</p>
+        <p
+          className={`column-brief${briefOpen ? " column-brief-open" : ""}`}
+          title={briefOpen ? "クリックで折りたたむ" : "クリックで全文表示"}
+          onClick={() => setBriefOpen((prev) => !prev)}
+        >
+          {brief ?? "まだ要約はありません"}
+        </p>
       </header>
       <div className="column-cards">
         {articles.length === 0 ? (
