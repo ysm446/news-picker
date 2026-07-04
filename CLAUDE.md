@@ -80,8 +80,14 @@
 - 各コマンドでは、使う値を先に定義してから使う。
 - 例では具体的な実ファイル名ではなく、必要に応じて `path/to/file.ext` のような一般的なパスを使う。
 
+## Python 環境
+
+- Python はリポジトリ直下の venv(`.venv/`、Python 3.13)を使う。グローバル環境にインストールしない。
+- 実行は `.venv\Scripts\python`、依存追加は `server/requirements.txt` に記載してから `.venv\Scripts\python -m pip install -r server\requirements.txt`。
+- venv がない場合の再作成: `py -3.13 -m venv .venv`
+
 ## 検証
 
 - フロントエンドや型に関わる変更後は、可能な限り `npm run build` を実行する。
-- バックエンド Python の単体ファイル変更では、可能な限り `py_compile` などで構文確認する。
+- バックエンド Python の変更後は `.venv\Scripts\python tests\test_phase1.py` 等の検証スクリプトを実行する。最低限 `py_compile` で構文確認する。
 - 検証できなかった場合は、その理由を作業報告に書く。

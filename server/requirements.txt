@@ -1,0 +1,11 @@
+# フェーズ1 (基盤)
+pyyaml
+sqlite-vec
+
+# フェーズ2以降で追加予定:
+# fastapi
+# uvicorn
+# pydantic
+# apscheduler
+# ddgs
+# sentence-transformers  # Ruri v3-310m (フェーズ3)

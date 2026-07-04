@@ -1,0 +1,44 @@
+categories:
+  - id: semiconductor-stocks
+    label: 半導体株
+    keywords: [半導体, HBM, ファウンドリ, 露光]
+    query_templates:
+      - "HBM 需給 {month}"
+      - "TSMC 稼働率"
+      - "NVDA 決算"
+      - "対中 半導体 規制"
+    poll_interval_sec: 300
+    jitter_sec: 60
+    impact_axis: [bullish, neutral, bearish]
+    max_window: 40
+    summary_prompt: |
+      あなたは半導体業界アナリスト。以下の直近記事から、
+      投資判断に関係する動きを3〜5行で要約せよ。
+
+  - id: gpu
+    label: GPU
+    keywords: [GPU, NVIDIA, Blackwell, Radeon]
+    query_templates:
+      - "NVIDIA GPU 新製品"
+      - "GPU 供給 価格"
+      - "データセンター GPU"
+    poll_interval_sec: 600
+    jitter_sec: 90
+    impact_axis: [notable, minor]
+    max_window: 30
+    summary_prompt: |
+      GPU 市場動向の要約。新製品・供給・価格・データセンター需要に注目。
+
+  - id: local-llm
+    label: ローカルLLM
+    keywords: [llama.cpp, GGUF, quantization, MoE]
+    query_templates:
+      - "新しい GGUF モデル"
+      - "llama.cpp release"
+      - "量子化 手法"
+    poll_interval_sec: 600
+    jitter_sec: 90
+    impact_axis: [notable, minor]
+    max_window: 30
+    summary_prompt: |
+      ローカルLLM動向の要約。新モデル・量子化・推論最適化に注目。
