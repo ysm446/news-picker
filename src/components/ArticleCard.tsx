@@ -16,6 +16,7 @@ export function ArticleCard({
   article, translate, onSave, onHide, onLike, onDismiss, onOpen,
 }: Props) {
   const unread = article.status === "new";
+  const saved = article.status === "saved";
   const displayTitle = translate && article.title_ja ? article.title_ja : article.title;
   return (
     <div
@@ -49,13 +50,12 @@ export function ArticleCard({
         )}
         <div className="card-actions" onClick={(e) => e.stopPropagation()}>
           <button
-            className="btn-icon card-action"
-            aria-label="保存"
-            title="保存 (パージ対象外になる)"
-            disabled={article.status === "saved"}
+            className={`btn-icon card-action${saved ? " btn-saved" : ""}`}
+            aria-label={saved ? "保存を解除" : "保存"}
+            title={saved ? "保存を解除 (自動整理の対象に戻る)" : "保存 (パージ対象外になる)"}
             onClick={() => onSave(article.id)}
           >
-            <BookmarkIcon filled={article.status === "saved"} />
+            <BookmarkIcon filled={saved} />
           </button>
           <button
             className={`btn-icon card-action${article.rating === 1 ? " btn-liked" : ""}`}

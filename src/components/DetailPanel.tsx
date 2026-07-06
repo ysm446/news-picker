@@ -20,6 +20,7 @@ export function DetailPanel({
 }: Props) {
   if (!article) return null;
   const enriched = article.enriched_at != null;
+  const saved = article.status === "saved";
   const translated = translate && article.title_ja && article.title_ja !== article.title;
   return (
     <aside className={`detail-panel${besideChat ? " detail-panel-shifted" : ""}`}>
@@ -27,13 +28,12 @@ export function DetailPanel({
         <span className="detail-time">{relativeTime(article.fetched_at)}</span>
         <div className="detail-actions">
           <button
-            className="btn-icon card-action"
-            aria-label="保存"
-            title="保存 (パージ対象外になる)"
-            disabled={article.status === "saved"}
+            className={`btn-icon card-action${saved ? " btn-saved" : ""}`}
+            aria-label={saved ? "保存を解除" : "保存"}
+            title={saved ? "保存を解除 (自動整理の対象に戻る)" : "保存 (パージ対象外になる)"}
             onClick={() => onSave(article.id)}
           >
-            <BookmarkIcon filled={article.status === "saved"} />
+            <BookmarkIcon filled={saved} />
           </button>
           <button
             className={`btn-icon card-action${article.rating === 1 ? " btn-liked" : ""}`}

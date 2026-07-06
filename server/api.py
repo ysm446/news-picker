@@ -272,15 +272,21 @@ def enqueue_enrich(article_id: int) -> dict:
 
 @app.post("/articles/{article_id}/save")
 def save_article(article_id: int) -> dict:
+    """保存のトグル。解除時は enrich 済みなら seen、未処理なら new に戻す。"""
     conn = store.connect()
     try:
-        if store.get_article(conn, article_id) is None:
+        row = store.get_article(conn, article_id)
+        if row is None:
             raise HTTPException(404, f"article {article_id} not found")
-        store.set_status(conn, article_id, "saved")
+        if row["status"] == "saved":
+            status = "seen" if row["enriched_at"] else "new"
+        else:
+            status = "saved"
+        store.set_status(conn, article_id, status)
     finally:
         conn.close()
-    bus.publish({"type": "article.status_changed", "id": article_id, "status": "saved"})
-    return {"id": article_id, "status": "saved"}
+    bus.publish({"type": "article.status_changed", "id": article_id, "status": status})
+    return {"id": article_id, "status": status}
 
 
 @app.post("/articles/{article_id}/like")
