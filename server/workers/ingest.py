@@ -53,6 +53,7 @@ class IngestWorker:
                     url=r["url"],
                     source=r["source"],
                     snippet=r["snippet"],
+                    image_url=r.get("image_url"),
                     published_at=r["published_at"],
                 )
                 if article_id is None:
@@ -64,6 +65,7 @@ class IngestWorker:
                         "title": row["title"],
                         "source": row["source"],
                         "snippet": row["snippet"],
+                        "image_url": row["image_url"],
                         "fetched_at": row["fetched_at"],
                     }
                 )

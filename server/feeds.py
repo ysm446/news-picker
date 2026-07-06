@@ -38,6 +38,22 @@ def _entry_epoch(entry) -> int | None:
     return None
 
 
+def _entry_image(entry) -> str | None:
+    """media:thumbnail / media:content / enclosure から画像 URL を探す。"""
+    for thumb in entry.get("media_thumbnail") or []:
+        if thumb.get("url"):
+            return thumb["url"]
+    for media in entry.get("media_content") or []:
+        is_image = media.get("medium") == "image" or (media.get("type") or "").startswith("image/")
+        if is_image and media.get("url"):
+            return media["url"]
+    for link in entry.get("links") or []:
+        if link.get("rel") == "enclosure" and (link.get("type") or "").startswith("image/"):
+            if link.get("href"):
+                return link["href"]
+    return None
+
+
 def fetch_feed(url: str, max_entries: int = 30) -> list[dict]:
     """1フィード分の取得。失敗・未更新 (304) は空リストを返す。"""
     etag, modified = _http_cache.get(url, (None, None))
@@ -69,6 +85,7 @@ def fetch_feed(url: str, max_entries: int = 30) -> list[dict]:
                 "snippet": _strip_html(entry.get("summary") or "")[:500] or None,
                 "published_at": _entry_epoch(entry),
                 "source": source,
+                "image_url": _entry_image(entry),
             }
         )
     return results

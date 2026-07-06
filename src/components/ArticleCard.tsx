@@ -1,10 +1,12 @@
+import { useState } from "react";
 import type { Article } from "../types";
-import { relativeTime } from "../api";
+import { API_BASE, relativeTime } from "../api";
 import { BookmarkIcon, ThumbsDownIcon, ThumbsUpIcon, XIcon } from "./icons";
 
 interface Props {
   article: Article;
   translate: boolean;
+  showThumbnails: boolean;
   onSave: (id: number) => void;
   onHide: (id: number) => void;
   onLike: (id: number) => void;
@@ -13,17 +15,28 @@ interface Props {
 }
 
 export function ArticleCard({
-  article, translate, onSave, onHide, onLike, onDismiss, onOpen,
+  article, translate, showThumbnails, onSave, onHide, onLike, onDismiss, onOpen,
 }: Props) {
   const unread = article.status === "new";
   const saved = article.status === "saved";
   const displayTitle = translate && article.title_ja ? article.title_ja : article.title;
+  // サムネイルの取得失敗 (リンク切れ・小さすぎ等) はカードごと画像なし表示に落とす
+  const [imgBroken, setImgBroken] = useState(false);
   return (
     <div
       className={`card${unread ? " card-unread" : ""}`}
       onClick={() => onOpen(article)}
       title={article.title /* ツールチップは常に原文 */}
     >
+      {showThumbnails && article.image_url && !imgBroken && (
+        <img
+          className="card-image"
+          src={`${API_BASE}/articles/${article.id}/thumb`}
+          alt=""
+          loading="lazy"
+          onError={() => setImgBroken(true)}
+        />
+      )}
       <div className="card-title">{displayTitle}</div>
       <div className="card-meta">
         {unread && <span className="unread-dot" aria-label="未読" />}

@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS articles (
   url_hash     TEXT NOT NULL,
   source       TEXT,
   snippet      TEXT,
+  image_url    TEXT,                       -- ニュース元のサムネイル画像 URL (任意)
   published_at INTEGER,
   fetched_at   INTEGER NOT NULL,
   status       TEXT NOT NULL DEFAULT 'new',
@@ -93,6 +94,7 @@ def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
         "ALTER TABLE articles ADD COLUMN relevance INTEGER",
         "ALTER TABLE articles ADD COLUMN title_ja TEXT",
         "ALTER TABLE articles ADD COLUMN rating INTEGER",
+        "ALTER TABLE articles ADD COLUMN image_url TEXT",
     ):
         try:
             conn.execute(ddl)
@@ -139,6 +141,7 @@ def insert_article(
     url: str,
     source: str | None = None,
     snippet: str | None = None,
+    image_url: str | None = None,
     published_at: int | None = None,
     fetched_at: int | None = None,
 ) -> int | None:
@@ -153,10 +156,11 @@ def insert_article(
         with conn:
             cur = conn.execute(
                 """INSERT INTO articles
-                   (category, title, url, url_hash, source, snippet,
+                   (category, title, url, url_hash, source, snippet, image_url,
                     published_at, fetched_at, status)
-                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'new')""",
-                (category, title, url, h, source, snippet, published_at, fetched_at),
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'new')""",
+                (category, title, url, h, source, snippet, image_url,
+                 published_at, fetched_at),
             )
             article_id = cur.lastrowid
             conn.execute(
@@ -358,9 +362,9 @@ def insert_full_article(conn: sqlite3.Connection, row: dict) -> None:
     """rebuild 用: MD frontmatter 由来の全カラムを id ごと復元する。"""
     cols = (
         "id", "category", "title", "url", "url_hash", "source", "snippet",
-        "published_at", "fetched_at", "status", "summary", "key_points",
-        "entities", "impact", "tags", "body", "md_path", "enriched_at",
-        "relevance", "title_ja", "rating",
+        "image_url", "published_at", "fetched_at", "status", "summary",
+        "key_points", "entities", "impact", "tags", "body", "md_path",
+        "enriched_at", "relevance", "title_ja", "rating",
     )
     values = [row.get(c) for c in cols]
     with conn:

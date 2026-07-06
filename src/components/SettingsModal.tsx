@@ -196,6 +196,17 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
                     ニュースの見出しを日本語訳する (9B が自動翻訳。新着から適用。
                     既存分は採点し直しで翻訳)
                   </label>
+                  <label className="filter-check prefs-check">
+                    <input
+                      type="checkbox"
+                      checked={prefs.show_thumbnails}
+                      onChange={(e) =>
+                        setPrefs({ ...prefs, show_thumbnails: e.target.checked })
+                      }
+                    />
+                    カードにサムネイル画像を表示する (画像は data/cache/images/
+                    に一時保存され、記事の整理と一緒に削除)
+                  </label>
                   <label className="form-row">
                     <span>常駐モデル (要約・採点・チャット代行。変更は保存時に再起動)</span>
                     <select

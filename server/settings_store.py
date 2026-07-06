@@ -10,6 +10,7 @@ from .atomic_io import atomic_write_json, read_json
 
 DEFAULTS: dict = {
     "translate_titles": False,              # 見出しを日本語訳 (常駐モデル、キュレーション採点に相乗り)
+    "show_thumbnails": True,                # カードにサムネイル画像を表示
     "noise_threshold": 30,                  # これ未満の relevance をノイズ扱い (UI フィルタ)
     "retention_days": config.RETENTION_DAYS,  # 自動整理の保持日数
     # 使用モデル (models/ からの相対パス)。役割: standard=常駐 / deep=深堀りチャット

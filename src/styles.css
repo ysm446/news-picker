@@ -288,6 +288,17 @@ button {
   background: var(--panel-hover);
 }
 
+/* サムネイル: カード幅いっぱい (padding をぶち抜く) にタイトルの上へ */
+.card-image {
+  display: block;
+  width: calc(100% + 24px);
+  margin: -10px -12px 8px;
+  aspect-ratio: 1.91 / 1; /* og:image の標準比率 */
+  object-fit: cover;
+  border-radius: 8px 8px 0 0;
+  background: var(--panel-hover);
+}
+
 .card-title {
   font-size: 13.5px;
   line-height: 1.45;

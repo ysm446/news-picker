@@ -8,6 +8,7 @@ interface Props {
   articles: Article[];
   brief: string | null;
   translate: boolean;
+  showThumbnails: boolean;
   onSave: (id: number) => void;
   onHide: (id: number) => void;
   onLike: (id: number) => void;
@@ -17,7 +18,8 @@ interface Props {
 }
 
 export function CategoryColumn({
-  category, articles, brief, translate, onSave, onHide, onLike, onDismiss, onOpen, onSettings,
+  category, articles, brief, translate, showThumbnails,
+  onSave, onHide, onLike, onDismiss, onOpen, onSettings,
 }: Props) {
   const unread = articles.filter((a) => a.status === "new").length;
   const [briefOpen, setBriefOpen] = useState(false);
@@ -53,6 +55,7 @@ export function CategoryColumn({
               key={a.id}
               article={a}
               translate={translate}
+              showThumbnails={showThumbnails}
               onSave={onSave}
               onHide={onHide}
               onLike={onLike}

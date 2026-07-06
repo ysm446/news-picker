@@ -67,6 +67,7 @@ def search_news(
                 "snippet": (r.get("body") or "").strip() or None,
                 "published_at": _parse_date(r.get("date")),
                 "source": r.get("source") or None,
+                "image_url": r.get("image") or None,
             }
         )
     return results

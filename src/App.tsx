@@ -153,6 +153,7 @@ export default function App() {
         url: "",
         source: ev.article.source,
         snippet: null,
+        image_url: ev.article.image_url ?? null,
         status: "new",
         fetched_at: ev.article.fetched_at,
         published_at: null,
@@ -391,6 +392,7 @@ export default function App() {
             articles={applyFilters(articles[c.id] ?? [], filters, prefs?.noise_threshold ?? 30)}
             brief={briefs[c.id] ?? null}
             translate={prefs?.translate_titles ?? false}
+            showThumbnails={prefs?.show_thumbnails ?? true}
             onSave={onSave}
             onHide={onHide}
             onLike={onLike}

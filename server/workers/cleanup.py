@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 import logging
 
-from .. import config, settings_store, store, vault
+from .. import config, settings_store, store, thumbs, vault
 
 log = logging.getLogger(__name__)
 
@@ -35,6 +35,7 @@ class CleanupWorker:
                 store.add_tombstone(conn, row["url_hash"], "purged")
                 vault.append_tombstone(row["url_hash"], "purged")
                 store.delete_article_index(conn, row["id"])
+                thumbs.delete(row["id"])
                 if row["md_path"]:
                     md = config.VAULT_DIR / row["md_path"]
                     md.unlink(missing_ok=True)

@@ -16,10 +16,10 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel, Field
 
-from . import config, llama_manager, settings_store, store, system_stats, vault
+from . import config, llama_manager, settings_store, store, system_stats, thumbs, vault
 from .chat_agent import run_chat
 from .sse import EventBus, format_sse
 from .workers.brief import BriefWorker
@@ -257,6 +257,22 @@ def get_article(article_id: int) -> dict:
     return d
 
 
+@app.get("/articles/{article_id}/thumb")
+def article_thumb(article_id: int) -> FileResponse:
+    """サムネイル画像。初回はダウンロード・縮小して data/cache/images/ に保存。"""
+    conn = store.connect()
+    try:
+        row = store.get_article(conn, article_id)
+    finally:
+        conn.close()
+    if row is None or not row["image_url"]:
+        raise HTTPException(404, "no image")
+    path = thumbs.get_or_fetch(article_id, row["image_url"])
+    if path is None:
+        raise HTTPException(404, "image unavailable")
+    return FileResponse(path, media_type="image/jpeg")
+
+
 @app.post("/articles/{article_id}/enrich")
 def enqueue_enrich(article_id: int) -> dict:
     conn = store.connect()
@@ -320,6 +336,7 @@ def dismiss_article(article_id: int) -> dict:
     finally:
         conn.close()
     vault.append_tombstone(url_hash, "deleted")
+    thumbs.delete(article_id)
     bus.publish({"type": "article.status_changed", "id": article_id, "status": "hidden"})
     return {"id": article_id, "rating": -1, "status": "hidden"}
 
@@ -334,6 +351,7 @@ def hide_article(article_id: int) -> dict:
     if url_hash is None:
         raise HTTPException(404, f"article {article_id} not found")
     vault.append_tombstone(url_hash, "deleted")  # rebuild 後も復活しないよう vault 側にも記録
+    thumbs.delete(article_id)
     bus.publish({"type": "article.status_changed", "id": article_id, "status": "hidden"})
     return {"id": article_id, "status": "hidden"}
 
@@ -426,6 +444,7 @@ async def events() -> StreamingResponse:
 
 class SettingsModel(BaseModel):
     translate_titles: bool | None = None
+    show_thumbnails: bool | None = None
     noise_threshold: int | None = Field(None, ge=0, le=100)
     retention_days: int | None = Field(None, ge=1, le=365)
     model_standard: str | None = None

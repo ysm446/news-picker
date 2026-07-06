@@ -29,6 +29,7 @@ export interface Article {
   url: string;
   source: string | null;
   snippet: string | null;
+  image_url: string | null;
   status: "new" | "seen" | "saved" | "hidden";
   fetched_at: number;
   published_at: number | null;
@@ -45,6 +46,7 @@ export interface Article {
 
 export interface AppSettings {
   translate_titles: boolean;
+  show_thumbnails: boolean;
   noise_threshold: number;
   retention_days: number;
   model_standard: string;
@@ -62,7 +64,13 @@ export type SseEvent =
   | {
       type: "article.new";
       category: string;
-      article: { id: number; title: string; source: string | null; fetched_at: number };
+      article: {
+        id: number;
+        title: string;
+        source: string | null;
+        image_url?: string | null;
+        fetched_at: number;
+      };
     }
   | { type: "article.enriched"; article: Partial<Article> & { id: number } }
   | { type: "article.enrich_failed"; id: number; detail: string }
