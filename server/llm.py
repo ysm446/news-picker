@@ -9,20 +9,27 @@
 from __future__ import annotations
 
 import json
+import logging
 import urllib.error
 import urllib.request
 
 from . import config
 
+log = logging.getLogger(__name__)
+
 DEFAULT_SAMPLING = {"temperature": 0.6, "top_p": 0.95, "top_k": 20}
+
+
+def _http_error_body(e: urllib.error.HTTPError) -> str:
+    try:
+        return e.read().decode("utf-8", errors="replace")[:500]
+    except Exception:  # noqa: BLE001
+        return ""
 
 
 def _raise_with_body(e: urllib.error.HTTPError) -> None:
     """llama-server のエラー本文 (原因) を含めて投げ直す。"""
-    try:
-        body = e.read().decode("utf-8", errors="replace")[:500]
-    except Exception:  # noqa: BLE001
-        body = ""
+    body = _http_error_body(e)
     raise RuntimeError(f"llama-server {e.code}: {body or e.reason}") from e
 
 
@@ -76,11 +83,21 @@ def chat(
         headers={"Content-Type": "application/json"},
         method="POST",
     )
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as res:
-            data = json.loads(res.read().decode("utf-8"))
-    except urllib.error.HTTPError as e:
-        _raise_with_body(e)
+    for attempt in range(2):
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as res:
+                data = json.loads(res.read().decode("utf-8"))
+            break
+        except urllib.error.HTTPError as e:
+            body = _http_error_body(e)
+            # 新しめの llama.cpp (b98xx~) は、生成出力がチャットテンプレートの
+            # 期待形式にパースできないと 500 を返す (例: "does not match the
+            # expected peg-native format")。サンプリングの揺らぎによる確率的な
+            # 事象なので、1回だけリトライする
+            if attempt == 0 and e.code == 500 and "does not match the expected" in body:
+                log.info("llama-server output parse error, retrying once: %s", body[:120])
+                continue
+            raise RuntimeError(f"llama-server {e.code}: {body or e.reason}") from e
 
     message = data["choices"][0]["message"]
     return {

@@ -127,7 +127,9 @@ class EnrichWorker:
                 base_url=config.LLM_STANDARD_URL,
                 response_json_schema=_result_schema(impact_axis),
                 enable_thinking=False,
-                max_tokens=1024,
+                # 1024 だと長い記事で JSON が途中で切れることがあり、新しめの
+                # llama.cpp はそれを出力パースエラー (500) にする。余裕を持たせる
+                max_tokens=2048,
                 timeout=180,
             )
             data = json.loads(result["content"])
