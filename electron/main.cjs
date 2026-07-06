@@ -45,6 +45,31 @@ function spawnDetachedQuiet(exe, args, opts = {}) {
   return child;
 }
 
+function shutdownBackend(done) {
+  // 完全終了: バックエンドに llama-server ごと止めてもらう。
+  // 再起動などでバックエンドが子プロセスでなくなっていても、これで全部止まる
+  let finished = false;
+  const finish = () => {
+    if (!finished) {
+      finished = true;
+      done();
+    }
+  };
+  const req = http.request(
+    { host: "127.0.0.1", port: 8100, path: "/admin/shutdown", method: "POST", timeout: 25000 },
+    (res) => {
+      res.resume();
+      res.on("end", finish);
+    },
+  );
+  req.on("error", finish); // 既に停止していれば即終了へ
+  req.on("timeout", () => {
+    req.destroy();
+    finish();
+  });
+  req.end();
+}
+
 function ensureBackendStack() {
   // llama-server の起動はバックエンドが担う (常駐モデルは自動起動、
   // 深堀りモデルはステータスバーのトグルから)。ここではバックエンドのみ確認
@@ -148,7 +173,8 @@ function createTray() {
         label: "終了",
         click: () => {
           quitting = true;
-          app.quit();
+          // llama-server とバックエンドを止めてからアプリを閉じる (完全終了)
+          shutdownBackend(() => app.quit());
         },
       },
     ]),

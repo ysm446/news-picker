@@ -12,6 +12,7 @@ import json
 import logging
 import os
 import re
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
@@ -509,6 +510,23 @@ def llama_restart(role: str) -> dict:
 
 
 # ---------------------------------------------------------------- admin
+
+@app.post("/admin/shutdown")
+def shutdown_backend() -> dict:
+    """完全終了: llama-server を (誰が起動したものでも) 止めてから自分も exit する。
+
+    トレイの「終了」から呼ばれる。バックエンドが Electron の子プロセスで
+    なくなっている場合 (外部起動) でも、これで全部きれいに止まる。
+    """
+    for role in llama_manager.ROLES:
+        try:
+            llama_manager.stop(role)
+        except Exception:  # noqa: BLE001 - 片方の停止失敗で終了を止めない
+            logging.getLogger(__name__).exception("shutdown: llama %s stop failed", role)
+    # 応答を返しきってから抜ける
+    threading.Timer(0.5, lambda: os._exit(0)).start()
+    return {"shutting_down": True}
+
 
 @app.post("/admin/rebuild-index")
 def rebuild_index() -> dict:
