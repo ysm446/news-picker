@@ -49,6 +49,12 @@ export const api = {
     }),
   deleteCategory: (id: string) =>
     fetchJson(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  reorderCategories: (order: string[]) =>
+    fetchJson<{ order: string[] }>("/categories/reorder", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ order }),
+    }),
   llamaControl: (role: "standard" | "deep", action: "start" | "stop" | "restart") =>
     fetchJson<{ status: string }>(`/llama/${role}/${action}`, { method: "POST" }),
   getModels: () => fetchJson<ModelInfo[]>("/models"),

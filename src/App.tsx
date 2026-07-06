@@ -280,6 +280,25 @@ export default function App() {
     setChat({ articleId: article.id, title: article.title });
   }, []);
 
+  const onReorderCategories = useCallback(
+    (draggedId: string, targetId: string) => {
+      if (draggedId === targetId) return;
+      const ids = categories.map((c) => c.id);
+      const from = ids.indexOf(draggedId);
+      const to = ids.indexOf(targetId);
+      if (from < 0 || to < 0) return;
+      const next = [...categories];
+      const [moved] = next.splice(from, 1);
+      next.splice(to, 0, moved);
+      setCategories(next); // 楽観更新
+      api.reorderCategories(next.map((c) => c.id)).catch((e) => {
+        console.error(e);
+        void loadAll(); // 保存に失敗したらサーバーの順序に戻す
+      });
+    },
+    [categories, loadAll],
+  );
+
   const onReloadConfig = useCallback(() => {
     api
       .reloadConfig()
@@ -399,6 +418,7 @@ export default function App() {
             onDismiss={onDismiss}
             onOpen={onOpen}
             onSettings={(id) => setSettings({ editId: id })}
+            onReorder={onReorderCategories}
           />
         ))}
       </main>
@@ -407,6 +427,7 @@ export default function App() {
         loading={selected != null && selected.enriched_at == null}
         error={detailError}
         translate={prefs?.translate_titles ?? false}
+        showThumbnails={prefs?.show_thumbnails ?? true}
         besideChat={chat !== null}
         onClose={onCloseDetail}
         onDeepDive={onDeepDive}

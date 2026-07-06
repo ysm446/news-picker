@@ -16,15 +16,20 @@ interface Props {
   onDismiss: (id: number) => void;
   onOpen: (article: Article) => void;
   onSettings: (categoryId: string) => void;
+  onReorder: (draggedId: string, targetId: string) => void;
 }
+
+// 列ヘッダーのドラッグ&ドロップ用のカスタム MIME タイプ (他のドラッグと区別する)
+const DRAG_TYPE = "application/x-news-picker-category";
 
 export function CategoryColumn({
   category, articles, brief, translate, showThumbnails,
-  onSave, onHide, onLike, onDismiss, onOpen, onSettings,
+  onSave, onHide, onLike, onDismiss, onOpen, onSettings, onReorder,
 }: Props) {
   const unread = articles.filter((a) => a.status === "new").length;
   const [briefOpen, setBriefOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [dropTarget, setDropTarget] = useState(false);
 
   const refresh = () => {
     setRefreshing(true);
@@ -35,9 +40,36 @@ export function CategoryColumn({
   };
 
   return (
-    <section className="column">
+    <section
+      className={`column${dropTarget ? " column-drop-target" : ""}`}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes(DRAG_TYPE)) {
+          e.preventDefault();
+          e.dataTransfer.dropEffect = "move";
+          setDropTarget(true);
+        }
+      }}
+      onDragLeave={(e) => {
+        // 子要素への移動では消さない (ハイライトのちらつき防止)
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDropTarget(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDropTarget(false);
+        const draggedId = e.dataTransfer.getData(DRAG_TYPE);
+        if (draggedId) onReorder(draggedId, category.id);
+      }}
+    >
       <header className="column-header">
-        <div className="column-title-row">
+        <div
+          className="column-title-row"
+          draggable
+          title="ドラッグで列を並び替え"
+          onDragStart={(e) => {
+            e.dataTransfer.setData(DRAG_TYPE, category.id);
+            e.dataTransfer.effectAllowed = "move";
+          }}
+        >
           <h2 className="column-title">{category.label}</h2>
           {unread > 0 && <span className="column-unread">{unread}</span>}
           <button

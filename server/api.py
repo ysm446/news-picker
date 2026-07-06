@@ -188,6 +188,25 @@ async def update_category(category_id: str, model: CategoryModel) -> dict:
     return {"id": category_id, "updated": True}
 
 
+class ReorderModel(BaseModel):
+    order: list[str]
+
+
+@app.post("/categories/reorder")
+def reorder_categories(model: ReorderModel) -> dict:
+    """カテゴリの表示順を保存する (yaml のリスト順 = ボードの列順)。
+
+    順番は表示にしか影響しないため、ワーカーの再構築はしない
+    (取り込みループを止めない)。
+    """
+    categories = config.load_categories()
+    by_id = {c.id: c for c in categories}
+    if set(model.order) != set(by_id) or len(model.order) != len(by_id):
+        raise HTTPException(400, "order には全カテゴリの id を過不足なく含めてください")
+    config.save_categories([by_id[i] for i in model.order])
+    return {"order": model.order}
+
+
 @app.delete("/categories/{category_id}")
 async def delete_category(category_id: str) -> dict:
     categories = config.load_categories()

@@ -1,5 +1,6 @@
+import { useState } from "react";
 import type { Article } from "../types";
-import { relativeTime } from "../api";
+import { API_BASE, relativeTime } from "../api";
 import { BookmarkIcon, ThumbsDownIcon, ThumbsUpIcon } from "./icons";
 
 interface Props {
@@ -7,6 +8,7 @@ interface Props {
   loading: boolean;
   error: string | null;
   translate: boolean;
+  showThumbnails: boolean;
   besideChat: boolean; // 深堀りチャットと併存中はチャットの左に並ぶ
   onClose: () => void;
   onDeepDive: (article: Article) => void;
@@ -16,8 +18,11 @@ interface Props {
 }
 
 export function DetailPanel({
-  article, loading, error, translate, besideChat, onClose, onDeepDive, onSave, onLike, onDismiss,
+  article, loading, error, translate, showThumbnails, besideChat,
+  onClose, onDeepDive, onSave, onLike, onDismiss,
 }: Props) {
+  // 取得失敗した記事の画像だけ隠す (記事を切り替えたらまた試す)
+  const [brokenImageId, setBrokenImageId] = useState<number | null>(null);
   if (!article) return null;
   const enriched = article.enriched_at != null;
   const saved = article.status === "saved";
@@ -57,6 +62,14 @@ export function DetailPanel({
         </div>
       </header>
       <div className="detail-body">
+        {showThumbnails && article.image_url && brokenImageId !== article.id && (
+          <img
+            className="detail-image"
+            src={`${API_BASE}/articles/${article.id}/thumb`}
+            alt=""
+            onError={() => setBrokenImageId(article.id)}
+          />
+        )}
         <h2 className="detail-title">{translated ? article.title_ja : article.title}</h2>
         {translated && <p className="detail-original">{article.title}</p>}
         <div className="detail-meta">
