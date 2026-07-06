@@ -1,7 +1,8 @@
 import { useState } from "react";
 import type { Article, CategoryInfo } from "../types";
+import { api } from "../api";
 import { ArticleCard } from "./ArticleCard";
-import { GearIcon } from "./icons";
+import { GearIcon, RefreshIcon } from "./icons";
 
 interface Props {
   category: CategoryInfo;
@@ -23,12 +24,31 @@ export function CategoryColumn({
 }: Props) {
   const unread = articles.filter((a) => a.status === "new").length;
   const [briefOpen, setBriefOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const refresh = () => {
+    setRefreshing(true);
+    // 新着はポーリングと同じく SSE (article.new / article.curated) で流れ込む
+    api.ingestNow(category.id)
+      .catch(console.error)
+      .finally(() => setRefreshing(false));
+  };
+
   return (
     <section className="column">
       <header className="column-header">
         <div className="column-title-row">
           <h2 className="column-title">{category.label}</h2>
           {unread > 0 && <span className="column-unread">{unread}</span>}
+          <button
+            className={`column-settings column-refresh${refreshing ? " column-refresh-busy" : ""}`}
+            aria-label={`${category.label} を今すぐ更新`}
+            title={refreshing ? "取り込み中..." : "今すぐ更新 (検索 / RSS を即時実行)"}
+            disabled={refreshing}
+            onClick={refresh}
+          >
+            <RefreshIcon />
+          </button>
           <button
             className="column-settings"
             aria-label={`${category.label} の設定`}

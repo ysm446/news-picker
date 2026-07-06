@@ -28,6 +28,11 @@ export const api = {
   hide: (id: number) => fetchJson(`/articles/${id}/hide`, { method: "POST" }),
   like: (id: number) => fetchJson(`/articles/${id}/like`, { method: "POST" }),
   dismiss: (id: number) => fetchJson(`/articles/${id}/dismiss`, { method: "POST" }),
+  ingestNow: (category: string) =>
+    fetchJson<{ category: string; new: number; scored: number }>(
+      `/admin/ingest-now?category=${encodeURIComponent(category)}`,
+      { method: "POST" },
+    ),
   reloadConfig: () => fetchJson<{ categories: string[] }>("/admin/reload-config", { method: "POST" }),
   systemResources: () => fetchJson<SystemStats>("/system/resources"),
   createCategory: (c: CategoryConfig) =>

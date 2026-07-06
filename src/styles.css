@@ -234,6 +234,29 @@ button {
   outline-offset: 1px;
 }
 
+/* 更新ボタンが右端グループの先頭。後続の歯車は詰めて並べる */
+.column-refresh + .column-settings {
+  margin-left: 0;
+}
+
+.column-refresh:disabled {
+  cursor: default;
+}
+
+.column-refresh-busy {
+  color: var(--accent);
+}
+
+.column-refresh-busy svg {
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .column-brief {
   margin: 6px 0 0;
   font-size: 12px;
