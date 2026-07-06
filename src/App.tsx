@@ -102,6 +102,7 @@ export default function App() {
   }, []);
   const [settings, setSettings] = useState<{ editId: string | null } | null>(null);
   const [filterMenuOpen, setFilterMenuOpen] = useState(false);
+  const [catMenuOpen, setCatMenuOpen] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const selectedIdRef = useRef<number | null>(null);
   const loadedRef = useRef(false);
@@ -300,6 +301,18 @@ export default function App() {
     [categories, loadAll],
   );
 
+  const onToggleCategory = useCallback(
+    (id: string, enabled: boolean) => {
+      // 楽観更新 (非表示は取り込みも止まるが、それはバックエンド側で反映される)
+      setCategories((prev) => prev.map((c) => (c.id === id ? { ...c, enabled } : c)));
+      api.setCategoryEnabled(id, enabled).catch((e) => {
+        console.error(e);
+        void loadAll();
+      });
+    },
+    [loadAll],
+  );
+
   const onReloadConfig = useCallback(() => {
     api
       .reloadConfig()
@@ -377,6 +390,35 @@ export default function App() {
         <div className="filter-menu-wrap">
           <button
             className={`filter-toggle${
+              categories.some((c) => c.enabled === false) ? " filter-toggle-on" : ""
+            }`}
+            aria-expanded={catMenuOpen}
+            title="カテゴリの表示/非表示 (非表示中は取り込みも止まる)"
+            onClick={() => setCatMenuOpen((prev) => !prev)}
+          >
+            カテゴリ
+          </button>
+          {catMenuOpen && (
+            <>
+              <div className="filter-menu-backdrop" onClick={() => setCatMenuOpen(false)} />
+              <div className="filter-menu">
+                {categories.map((c) => (
+                  <label key={c.id} className="filter-check">
+                    <input
+                      type="checkbox"
+                      checked={c.enabled !== false}
+                      onChange={(e) => onToggleCategory(c.id, e.target.checked)}
+                    />
+                    {c.label}
+                  </label>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+        <div className="filter-menu-wrap">
+          <button
+            className={`filter-toggle${
               filters.savedOnly || !filters.hideNoise ? " filter-toggle-on" : ""
             }`}
             aria-expanded={filterMenuOpen}
@@ -428,7 +470,7 @@ export default function App() {
         {categories.length === 0 && !error && (
           <p className="board-loading">バックエンドに接続しています...</p>
         )}
-        {categories.map((c) => (
+        {categories.filter((c) => c.enabled !== false).map((c) => (
           <CategoryColumn
             key={c.id}
             category={c}

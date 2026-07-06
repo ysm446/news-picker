@@ -22,6 +22,7 @@ const EMPTY: CategoryConfig = {
   impact_axis: ["notable", "minor"],
   max_window: 30,
   summary_prompt: "",
+  enabled: true,
 };
 
 export function SettingsModal({ categories, initialEditId, onClose, onChanged }: Props) {

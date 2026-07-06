@@ -40,13 +40,16 @@ _loop_tasks: list[asyncio.Task] = []
 
 
 def _build_workers(categories: list[config.Category]) -> None:
+    # 無効カテゴリは取り込み・要約の対象から外す (更新を止める)。
+    # enrich は表示済み記事の詳細生成なので全カテゴリを持たせておく
     workers.clear()
     for cat in categories:
-        workers[cat.id] = IngestWorker(cat, bus)
+        if cat.enabled:
+            workers[cat.id] = IngestWorker(cat, bus)
     if enricher is not None:
         enricher.categories = {c.id: c for c in categories}
     if briefer is not None:
-        briefer.categories = categories
+        briefer.categories = [c for c in categories if c.enabled]
 
 
 def _start_loops() -> None:
@@ -116,6 +119,7 @@ class CategoryModel(BaseModel):
     impact_axis: list[str] = ["notable", "minor"]
     max_window: int = 30
     summary_prompt: str = ""
+    enabled: bool = True
 
 
 _CATEGORY_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]*$")
@@ -153,6 +157,7 @@ def list_categories() -> list[dict]:
             "impact_axis": c.impact_axis,
             "max_window": c.max_window,
             "summary_prompt": c.summary_prompt,
+            "enabled": c.enabled,
             "unread": counts.get(c.id, 0),
         }
         for c in config.load_categories()
@@ -186,6 +191,22 @@ async def update_category(category_id: str, model: CategoryModel) -> dict:
     categories[index] = config.Category(**data)
     _save_and_reload(categories)
     return {"id": category_id, "updated": True}
+
+
+class EnabledModel(BaseModel):
+    enabled: bool
+
+
+@app.put("/categories/{category_id}/enabled")
+async def set_category_enabled(category_id: str, model: EnabledModel) -> dict:
+    """カテゴリの表示/非表示。非表示は取り込み・要約も止める。"""
+    categories = config.load_categories()
+    target = next((c for c in categories if c.id == category_id), None)
+    if target is None:
+        raise HTTPException(404, f"カテゴリ {category_id} が見つかりません")
+    target.enabled = model.enabled
+    _save_and_reload(categories)  # ワーカー構成が変わるので再構築する
+    return {"id": category_id, "enabled": model.enabled}
 
 
 class ReorderModel(BaseModel):

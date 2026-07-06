@@ -49,6 +49,15 @@ export const api = {
     }),
   deleteCategory: (id: string) =>
     fetchJson(`/categories/${encodeURIComponent(id)}`, { method: "DELETE" }),
+  setCategoryEnabled: (id: string, enabled: boolean) =>
+    fetchJson<{ id: string; enabled: boolean }>(
+      `/categories/${encodeURIComponent(id)}/enabled`,
+      {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled }),
+      },
+    ),
   reorderCategories: (order: string[]) =>
     fetchJson<{ order: string[] }>("/categories/reorder", {
       method: "POST",

@@ -53,6 +53,7 @@ class Category:
     impact_axis: list[str] = field(default_factory=lambda: ["notable", "minor"])
     max_window: int = 40
     summary_prompt: str = ""
+    enabled: bool = True  # False で列を非表示 + 取り込み・要約も止める
 
 
 def _ensure_categories_file(path: Path) -> None:

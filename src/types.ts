@@ -10,6 +10,7 @@ export interface CategoryConfig {
   impact_axis: string[];
   max_window: number;
   summary_prompt: string;
+  enabled: boolean;
 }
 
 export interface CategoryInfo extends CategoryConfig {
