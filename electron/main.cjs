@@ -184,14 +184,24 @@ function createTray() {
 
 // ---------------------------------------------------------------- ライフサイクル
 
-app.whenReady().then(() => {
-  ensureBackendStack();
-  createWindow();
-  createTray();
-  app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+if (!app.requestSingleInstanceLock()) {
+  // 二重起動: 既に動いているインスタンス側で second-instance が発火して
+  // ウィンドウが前面に出るので、こちらは何もせず即終了する
+  quitting = true;
+  app.quit();
+} else {
+  // 2回目の起動が試みられたら、トレイ格納中でもウィンドウを出す
+  app.on("second-instance", showWindow);
+
+  app.whenReady().then(() => {
+    ensureBackendStack();
+    createWindow();
+    createTray();
+    app.on("activate", () => {
+      if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    });
   });
-});
+}
 
 app.on("before-quit", () => {
   quitting = true;
