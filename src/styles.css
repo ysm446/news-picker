@@ -161,6 +161,37 @@ button {
   outline-offset: 1px;
 }
 
+/* フィルタボタンのポップアップ (軽い選択なのでモーダルではなく popover) */
+.filter-menu-wrap {
+  position: relative;
+}
+
+.filter-menu-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 35; /* 外側クリックで閉じるための透明レイヤー */
+}
+
+.filter-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 36;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 240px;
+  padding: 12px 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+
+.filter-menu .filter-check {
+  color: var(--text);
+}
+
 .board {
   display: flex;
   gap: 16px;

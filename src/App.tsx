@@ -101,6 +101,7 @@ export default function App() {
     audioRef.current.play().catch(console.error);
   }, []);
   const [settings, setSettings] = useState<{ editId: string | null } | null>(null);
+  const [filterMenuOpen, setFilterMenuOpen] = useState(false);
   const esRef = useRef<EventSource | null>(null);
   const selectedIdRef = useRef<number | null>(null);
   const loadedRef = useRef(false);
@@ -373,21 +374,44 @@ export default function App() {
           value={filters.entity}
           onChange={(e) => setFilters({ ...filters, entity: e.target.value })}
         />
-        <button
-          className={`filter-toggle${filters.savedOnly ? " filter-toggle-on" : ""}`}
-          aria-pressed={filters.savedOnly}
-          onClick={() => setFilters({ ...filters, savedOnly: !filters.savedOnly })}
-        >
-          保存のみ
-        </button>
-        <button
-          className={`filter-toggle${filters.hideNoise ? " filter-toggle-on" : ""}`}
-          aria-pressed={filters.hideNoise}
-          title={`関連度 ${prefs?.noise_threshold ?? 30} 未満の記事を隠す (9B が自動採点)`}
-          onClick={() => setFilters({ ...filters, hideNoise: !filters.hideNoise })}
-        >
-          ノイズを隠す
-        </button>
+        <div className="filter-menu-wrap">
+          <button
+            className={`filter-toggle${
+              filters.savedOnly || !filters.hideNoise ? " filter-toggle-on" : ""
+            }`}
+            aria-expanded={filterMenuOpen}
+            title="表示フィルタの切り替え"
+            onClick={() => setFilterMenuOpen((prev) => !prev)}
+          >
+            フィルタ
+          </button>
+          {filterMenuOpen && (
+            <>
+              <div className="filter-menu-backdrop" onClick={() => setFilterMenuOpen(false)} />
+              <div className="filter-menu">
+                <label className="filter-check">
+                  <input
+                    type="checkbox"
+                    checked={filters.savedOnly}
+                    onChange={(e) => setFilters({ ...filters, savedOnly: e.target.checked })}
+                  />
+                  保存した記事のみ表示
+                </label>
+                <label
+                  className="filter-check"
+                  title="9B が自動採点した関連度が閾値未満の記事を隠す"
+                >
+                  <input
+                    type="checkbox"
+                    checked={filters.hideNoise}
+                    onChange={(e) => setFilters({ ...filters, hideNoise: e.target.checked })}
+                  />
+                  ノイズを隠す (関連度 {prefs?.noise_threshold ?? 30} 未満)
+                </label>
+              </div>
+            </>
+          )}
+        </div>
         {filters !== NO_FILTERS && (
           <button className="btn-icon" onClick={() => setFilters(NO_FILTERS)}>
             クリア
