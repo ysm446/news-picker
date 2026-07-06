@@ -47,6 +47,7 @@ class Category:
     description: str = ""  # カテゴリの狙い。キュレーション (採点) の基準にも渡される
     keywords: list[str] = field(default_factory=list)
     query_templates: list[str] = field(default_factory=list)
+    feeds: list[str] = field(default_factory=list)  # RSS/Atom フィード URL (検索と併用可)
     poll_interval_sec: int = 300
     jitter_sec: int = 60
     impact_axis: list[str] = field(default_factory=lambda: ["notable", "minor"])

@@ -109,6 +109,7 @@ class CategoryModel(BaseModel):
     description: str = ""
     keywords: list[str] = []
     query_templates: list[str] = []
+    feeds: list[str] = []
     poll_interval_sec: int = 600
     jitter_sec: int = 60
     impact_axis: list[str] = ["notable", "minor"]
@@ -145,6 +146,7 @@ def list_categories() -> list[dict]:
             "description": c.description,
             "keywords": c.keywords,
             "query_templates": c.query_templates,
+            "feeds": c.feeds,
             "poll_interval_sec": c.poll_interval_sec,
             "jitter_sec": c.jitter_sec,
             "impact_axis": c.impact_axis,
@@ -160,8 +162,8 @@ def list_categories() -> list[dict]:
 async def create_category(model: CategoryModel) -> dict:  # async: ワーカー再起動はイベントループ上で行う
     if not _CATEGORY_ID_RE.match(model.id):
         raise HTTPException(400, "id は小文字英数字とハイフンのみ (例: semiconductor-stocks)")
-    if not model.query_templates:
-        raise HTTPException(400, "query_templates を1つ以上指定してください")
+    if not model.query_templates and not model.feeds:
+        raise HTTPException(400, "query_templates か feeds を1つ以上指定してください")
     categories = config.load_categories()
     if any(c.id == model.id for c in categories):
         raise HTTPException(409, f"カテゴリ {model.id} は既に存在します")
@@ -172,8 +174,8 @@ async def create_category(model: CategoryModel) -> dict:  # async: ワーカー�
 
 @app.put("/categories/{category_id}")
 async def update_category(category_id: str, model: CategoryModel) -> dict:
-    if not model.query_templates:
-        raise HTTPException(400, "query_templates を1つ以上指定してください")
+    if not model.query_templates and not model.feeds:
+        raise HTTPException(400, "query_templates か feeds を1つ以上指定してください")
     categories = config.load_categories()
     index = next((i for i, c in enumerate(categories) if c.id == category_id), None)
     if index is None:

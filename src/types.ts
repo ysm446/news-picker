@@ -4,6 +4,7 @@ export interface CategoryConfig {
   description: string;
   keywords: string[];
   query_templates: string[];
+  feeds: string[];
   poll_interval_sec: number;
   jitter_sec: number;
   impact_axis: string[];

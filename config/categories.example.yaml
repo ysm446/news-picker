@@ -58,6 +58,8 @@ categories:
   - 量子化 手法
   - Gemma 新モデル
   - Qwen 新モデル リリース
+  feeds:
+  - https://github.com/ggml-org/llama.cpp/releases.atom
   poll_interval_sec: 600
   jitter_sec: 90
   impact_axis:

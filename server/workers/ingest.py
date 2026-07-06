@@ -1,7 +1,8 @@
 """IngestWorker: 高速取り込みループ (spec §6.1)。
 
 カテゴリごとに poll_interval_sec + ジッタで回り、query_templates を
-ローテーションしながら検索 → dedup → status='new' で挿入 → SSE 配信。
+ローテーションしながら検索し、feeds (RSS/Atom) があれば併せて取得 →
+dedup → status='new' で挿入 → SSE 配信。
 LLM は一切通さない (二層カデンスの安い側)。
 """
 from __future__ import annotations
@@ -13,6 +14,7 @@ import random
 from datetime import datetime
 
 from .. import config, curator, llm, settings_store, store
+from ..feeds import fetch_feed
 from ..search_web import search_news
 from ..sse import EventBus
 
@@ -25,7 +27,10 @@ class IngestWorker:
     def __init__(self, category: config.Category, bus: EventBus) -> None:
         self.category = category
         self.bus = bus
-        self._queries = itertools.cycle(category.query_templates)
+        # フィードのみのカテゴリでは query_templates が空 (cycle は空だと next で例外)
+        self._queries = (
+            itertools.cycle(category.query_templates) if category.query_templates else None
+        )
 
     def _next_query(self) -> str:
         query = next(self._queries)
@@ -33,8 +38,10 @@ class IngestWorker:
 
     def ingest_once(self) -> list[dict]:
         """1回分の取り込み (同期)。挿入した記事の SSE ペイロードを返す。"""
-        query = self._next_query()
-        results = search_news(query)
+        query = self._next_query() if self._queries is not None else None
+        results = search_news(query) if query is not None else []
+        for feed_url in self.category.feeds:
+            results.extend(fetch_feed(feed_url))
         inserted: list[dict] = []
         conn = store.connect()
         try:
@@ -63,8 +70,8 @@ class IngestWorker:
         finally:
             conn.close()
         log.info(
-            "ingest[%s] query=%r results=%d new=%d",
-            self.category.id, query, len(results), len(inserted),
+            "ingest[%s] query=%r feeds=%d results=%d new=%d",
+            self.category.id, query, len(self.category.feeds), len(results), len(inserted),
         )
         return inserted
 

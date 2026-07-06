@@ -16,6 +16,7 @@ const EMPTY: CategoryConfig = {
   description: "",
   keywords: [],
   query_templates: [],
+  feeds: [],
   poll_interval_sec: 600,
   jitter_sec: 60,
   impact_axis: ["notable", "minor"],
@@ -29,6 +30,8 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
   // 複数行/カンマ区切りの入力欄は生テキストで保持し、保存時にだけ配列へ変換する
   // (入力のたびに正規化すると改行やスペースが打てなくなるため)
   const [queryText, setQueryText] = useState(initial ? initial.query_templates.join("\n") : "");
+  // feeds は後から追加したフィールドなので、旧バックエンドの応答 (undefined) にも耐える
+  const [feedsText, setFeedsText] = useState(initial ? (initial.feeds ?? []).join("\n") : "");
   const [impactText, setImpactText] = useState(initial ? initial.impact_axis.join(", ") : "");
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -77,6 +80,7 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
   const startNew = () => {
     setEditing({ ...EMPTY });
     setQueryText("");
+    setFeedsText("");
     setImpactText(EMPTY.impact_axis.join(", "));
     setIsNew(true);
     setError(null);
@@ -85,6 +89,7 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
   const startEdit = (c: CategoryInfo) => {
     setEditing({ ...c });
     setQueryText(c.query_templates.join("\n"));
+    setFeedsText((c.feeds ?? []).join("\n"));
     setImpactText(c.impact_axis.join(", "));
     setIsNew(false);
     setError(null);
@@ -97,6 +102,7 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
     const payload: CategoryConfig = {
       ...editing,
       query_templates: queryText.split("\n").map((s) => s.trim()).filter(Boolean),
+      feeds: feedsText.split("\n").map((s) => s.trim()).filter(Boolean),
       impact_axis: impactText.split(",").map((s) => s.trim()).filter(Boolean),
     };
     try {
@@ -317,6 +323,15 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
                   onChange={(e) => setQueryText(e.target.value)}
                 />
               </label>
+              <label className="form-row">
+                <span>RSS/Atom フィード (任意。1行1URL。検索と併用可)</span>
+                <textarea
+                  rows={2}
+                  value={feedsText}
+                  placeholder={"https://github.com/ggml-org/llama.cpp/releases.atom"}
+                  onChange={(e) => setFeedsText(e.target.value)}
+                />
+              </label>
               <div className="form-grid">
                 <label className="form-row">
                   <span>取得間隔 (秒)</span>
@@ -363,7 +378,12 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
               <button className="btn-icon" onClick={() => setEditing(null)}>キャンセル</button>
               <button
                 className="btn-primary"
-                disabled={busy || !editing.id || !editing.label || queryText.trim() === ""}
+                disabled={
+                  busy ||
+                  !editing.id ||
+                  !editing.label ||
+                  (queryText.trim() === "" && feedsText.trim() === "")
+                }
                 onClick={() => void save()}
               >
                 {isNew ? "追加" : "保存"}

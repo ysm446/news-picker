@@ -6,6 +6,7 @@ sqlite-vec
 fastapi
 uvicorn
 ddgs
+feedparser            # RSS/Atom フィード取り込み
 
 # フェーズ3 (詳細生成)
 trafilatura           # 記事本文の抽出
