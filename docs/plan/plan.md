@@ -1,7 +1,7 @@
 # plan — 実装方針と優先順位
 
 作成日時: 2026-07-04 22:01
-更新日時: 2026-07-05 04:19
+更新日時: 2026-07-06 21:16
 
 仕様の詳細は [../news-picker-spec.md](../news-picker-spec.md) を参照。ここでは実装の順序と判断を管理する。
 
@@ -90,6 +90,34 @@
 - **採点基準の自動更新提案**: 蓄積した負例を 9B に見せて「カテゴリの
   説明・採点基準に追記すべき除外ルール」を提案させ、ユーザー確認のうえ
   description に追記。学習結果が人間が読める形で蓄積される。
+
+## 実装予定: RSS フィード取り込み(2026-07-06 追加)
+
+カテゴリごとに RSS/Atom フィードを登録し、検索(ddgs)と並ぶ第2の取り込み経路にする。
+ニュース索引に載らないブログ・公式リリース(llama.cpp の GitHub Releases、企業テックブログ等)を
+拾えるようになり、「ニッチな専門用語はニュース検索でほぼ0件」問題(判断メモ 2026-07-05)を補完する。
+
+### 設計方針
+
+- **既存パイプラインへの合流**: IngestWorker の `ingest_once` で検索結果とフィード記事を
+  同じ insert 経路に流す。dedup(articles + tombstones)・キュレーション採点・日本語訳・
+  SSE 配信・二層カデンスはそのまま効く(RSS も LLM を通さない安い側)。
+- **設定**: `Category` に `feeds: list[str]` を追加(categories.yaml / 雛形 / カテゴリ設定 UI に
+  「RSS フィード (1行1URL)」欄)。フィードを持たないカテゴリは従来どおり検索のみ。
+- **取得**: 新モジュール `server/feeds.py`。`feedparser` ライブラリ(要 requirements 追加)で
+  取得し、title / url / source(フィード名)/ snippet(summary)/ published_at に正規化して返す。
+  RSS は published_at が正確に取れるので、published_at 欠損問題(未解決課題)の改善にもなる。
+- **礼儀**: ETag / Last-Modified による条件付き GET をフィードごとにキャッシュし、
+  更新がなければ本文を取得しない(feedparser が標準対応)。ポーリング周期はカテゴリの
+  poll_interval_sec に相乗り(フィードは軽いので分ける必要が出たら別途)。
+- **エラー処理**: フィード単位で失敗をログして継続(検索と同じ「次周期で再試行」方針)。
+
+### 実装ステップ(半日規模)
+
+1. `server/feeds.py`(feedparser ラッパー + 条件付き GET キャッシュ)
+2. `Category.feeds` + categories.example.yaml + 設定 UI の入力欄
+3. `ingest_once` で検索とフィードをマージ
+4. 動作検証(既存カテゴリに実フィードを1本入れて dedup・採点まで流れること)
 
 ## 判断メモ
 
