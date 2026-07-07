@@ -18,7 +18,13 @@ import re
 
 import feedparser
 
+from . import http_headers
+
 log = logging.getLogger(__name__)
+
+# feedparser 既定の UA (feedparser/x.y.z +...) は明らかなボット扱いで
+# 403 になる配信元があるため、ブラウザ相当のヘッダで取得する
+_FEED_HEADERS = http_headers.browser_headers(http_headers.FEED_ACCEPT)
 
 # フィード URL → (etag, modified 文字列)
 _http_cache: dict[str, tuple[str | None, str | None]] = {}
@@ -58,7 +64,9 @@ def fetch_feed(url: str, max_entries: int = 30) -> list[dict]:
     """1フィード分の取得。失敗・未更新 (304) は空リストを返す。"""
     etag, modified = _http_cache.get(url, (None, None))
     try:
-        parsed = feedparser.parse(url, etag=etag, modified=modified)
+        parsed = feedparser.parse(
+            url, etag=etag, modified=modified, request_headers=_FEED_HEADERS
+        )
     except Exception as e:  # noqa: BLE001 - フィード失敗でワーカーを殺さない
         log.warning("fetch_feed failed for %s: %s", url, e)
         return []

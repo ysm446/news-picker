@@ -16,7 +16,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from . import config
+from . import config, http_headers
 
 log = logging.getLogger(__name__)
 
@@ -25,7 +25,9 @@ _MAX_EDGE = 480  # カード幅 (~300px) の HiDPI 表示に足りる長辺
 _MIN_EDGE = 50   # これ未満はロゴ・トラッキングピクセルとみなして捨てる
 _MAX_BYTES = 10 * 1024 * 1024
 _TIMEOUT_SEC = 10
-_UA = "Mozilla/5.0 (news-picker thumbnail fetcher)"
+# 正直すぎる UA だと画像ホストの anti-bot/anti-hotlink に弾かれるため
+# ブラウザ相当のヘッダで取得する
+_HEADERS = http_headers.browser_headers(http_headers.IMAGE_ACCEPT)
 
 
 def thumb_path(article_id: int) -> Path:
@@ -38,7 +40,7 @@ def get_or_fetch(article_id: int, image_url: str) -> Path | None:
     if path.exists():
         return path
     try:
-        req = urllib.request.Request(image_url, headers={"User-Agent": _UA})
+        req = urllib.request.Request(image_url, headers=_HEADERS)
         with urllib.request.urlopen(req, timeout=_TIMEOUT_SEC) as res:
             raw = res.read(_MAX_BYTES)
         img = Image.open(io.BytesIO(raw))
