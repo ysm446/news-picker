@@ -56,6 +56,8 @@ function applyFilters(list: Article[], f: Filters, noiseThreshold: number): Arti
 export default function App() {
   const [categories, setCategories] = useState<CategoryInfo[]>([]);
   const [articles, setArticles] = useState<ArticlesByCat>({});
+  // 「保存のみ」フィルタ ON の間だけ使う保存済み全件のリスト (OFF 時は null)
+  const [savedByCat, setSavedByCat] = useState<ArticlesByCat | null>(null);
   const [briefs, setBriefs] = useState<Record<string, string>>({});
   const [connected, setConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -147,6 +149,16 @@ export default function App() {
   }, []);
 
   const handleEvent = useCallback((ev: SseEvent) => {
+    // articles と savedByCat (保存のみ表示用) の両方へ同じ更新を適用する
+    const updateLists = (update: (list: Article[]) => Article[]) => {
+      const apply = (prev: ArticlesByCat): ArticlesByCat => {
+        const next: ArticlesByCat = {};
+        for (const [cat, list] of Object.entries(prev)) next[cat] = update(list);
+        return next;
+      };
+      setArticles(apply);
+      setSavedByCat((prev) => (prev === null ? prev : apply(prev)));
+    };
     if (ev.type === "article.new") {
       const card: Article = {
         id: ev.article.id,
@@ -176,59 +188,42 @@ export default function App() {
       });
       playNotification();
     } else if (ev.type === "article.status_changed") {
-      setArticles((prev) => {
-        const next: ArticlesByCat = {};
-        for (const [cat, list] of Object.entries(prev)) {
-          next[cat] =
-            ev.status === "hidden"
-              ? list.filter((a) => a.id !== ev.id)
-              : list.map((a) => (a.id === ev.id ? { ...a, status: ev.status } : a));
-        }
-        return next;
-      });
+      updateLists((list) =>
+        ev.status === "hidden"
+          ? list.filter((a) => a.id !== ev.id)
+          : list.map((a) => (a.id === ev.id ? { ...a, status: ev.status } : a)),
+      );
       // 詳細パネルにも反映 (非表示になったら閉じる)
       setSelected((prev) => {
         if (!prev || prev.id !== ev.id) return prev;
         return ev.status === "hidden" ? null : { ...prev, status: ev.status };
       });
     } else if (ev.type === "article.enriched") {
-      setArticles((prev) => {
-        const next: ArticlesByCat = {};
-        for (const [cat, list] of Object.entries(prev)) {
-          next[cat] = list.map((a) => (a.id === ev.article.id ? { ...a, ...ev.article } : a));
-        }
-        return next;
-      });
+      updateLists((list) =>
+        list.map((a) => (a.id === ev.article.id ? { ...a, ...ev.article } : a)),
+      );
       setSelected((prev) => (prev && prev.id === ev.article.id ? { ...prev, ...ev.article } : prev));
     } else if (ev.type === "article.enrich_failed") {
       if (selectedIdRef.current === ev.id) setDetailError(ev.detail);
     } else if (ev.type === "article.rated") {
-      setArticles((prev) => {
-        const next: ArticlesByCat = {};
-        for (const [cat, list] of Object.entries(prev)) {
-          next[cat] = list.map((a) => (a.id === ev.id ? { ...a, rating: ev.rating } : a));
-        }
-        return next;
-      });
+      updateLists((list) =>
+        list.map((a) => (a.id === ev.id ? { ...a, rating: ev.rating } : a)),
+      );
       setSelected((prev) => (prev && prev.id === ev.id ? { ...prev, rating: ev.rating } : prev));
     } else if (ev.type === "article.curated") {
       const byId = new Map(ev.scores.map((s) => [s.id, s]));
-      setArticles((prev) => {
-        const next: ArticlesByCat = {};
-        for (const [cat, list] of Object.entries(prev)) {
-          next[cat] = list.map((a) => {
-            const s = byId.get(a.id);
-            return s
-              ? {
-                  ...a,
-                  relevance: s.relevance ?? a.relevance,
-                  title_ja: s.title_ja ?? a.title_ja,
-                }
-              : a;
-          });
-        }
-        return next;
-      });
+      updateLists((list) =>
+        list.map((a) => {
+          const s = byId.get(a.id);
+          return s
+            ? {
+                ...a,
+                relevance: s.relevance ?? a.relevance,
+                title_ja: s.title_ja ?? a.title_ja,
+              }
+            : a;
+        }),
+      );
     } else if (ev.type === "category.brief_updated") {
       setBriefs((prev) => ({ ...prev, [ev.category]: ev.brief }));
     }
@@ -246,6 +241,32 @@ export default function App() {
       if (retryRef.current !== null) window.clearTimeout(retryRef.current);
     };
   }, [loadAll, handleEvent]);
+
+  // 「保存のみ」フィルタ ON の間は保存済みを全件取得する
+  // (通常一覧は新しい順 60 件のため、古い保存カードは窓から外れて届かない)
+  useEffect(() => {
+    if (!filters.savedOnly || categories.length === 0) {
+      setSavedByCat(null);
+      return;
+    }
+    let cancelled = false;
+    void (async () => {
+      try {
+        const byCat: ArticlesByCat = {};
+        await Promise.all(
+          categories.map(async (c) => {
+            byCat[c.id] = await api.savedArticles(c.id);
+          }),
+        );
+        if (!cancelled) setSavedByCat(byCat);
+      } catch (e) {
+        console.error(e);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [filters.savedOnly, categories]);
 
   const onSave = useCallback((id: number) => {
     void api.save(id).catch(console.error); // 反映は SSE status_changed 経由
@@ -474,7 +495,12 @@ export default function App() {
           <CategoryColumn
             key={c.id}
             category={c}
-            articles={applyFilters(articles[c.id] ?? [], filters, prefs?.noise_threshold ?? 30)}
+            articles={applyFilters(
+              // 保存のみ表示中は全件リスト (取得完了までは通常リストで代用)
+              (filters.savedOnly ? savedByCat?.[c.id] : undefined) ?? articles[c.id] ?? [],
+              filters,
+              prefs?.noise_threshold ?? 30,
+            )}
             brief={briefs[c.id] ?? null}
             translate={prefs?.translate_titles ?? false}
             showThumbnails={prefs?.show_thumbnails ?? true}

@@ -22,6 +22,9 @@ export const api = {
   categories: () => fetchJson<CategoryInfo[]>("/categories"),
   articles: (category: string, limit = 60) =>
     fetchJson<Article[]>(`/articles?category=${encodeURIComponent(category)}&limit=${limit}`),
+  // 保存済みは通常一覧 (新しい順 60 件) の窓から外れても見えるよう全件取得する
+  savedArticles: (category: string) =>
+    fetchJson<Article[]>(`/articles?category=${encodeURIComponent(category)}&status=saved&limit=500`),
   article: (id: number) => fetchJson<Article>(`/articles/${id}`), // 未 enrich なら生成がキューされる
   brief: (category: string) => fetchJson<Brief>(`/categories/${encodeURIComponent(category)}/brief`),
   save: (id: number) => fetchJson(`/articles/${id}/save`, { method: "POST" }),
