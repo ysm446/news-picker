@@ -452,23 +452,6 @@ button {
   color: var(--danger);
 }
 
-.impact {
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 4px;
-  background: color-mix(in srgb, var(--text-sub) 12%, transparent);
-}
-
-.impact-bullish {
-  color: var(--saved);
-  background: color-mix(in srgb, var(--saved) 13%, transparent);
-}
-
-.impact-bearish {
-  color: var(--danger);
-  background: color-mix(in srgb, var(--danger) 13%, transparent);
-}
-
 .card-tags {
   display: flex;
   flex-wrap: wrap;
@@ -568,7 +551,7 @@ button {
 .detail-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   padding: 8px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
@@ -583,15 +566,12 @@ button {
   display: flex;
   align-items: center;
   gap: 4px;
+  margin-left: auto; /* メタ行 (ソース・時刻) の右端に寄せる */
 }
 
 /* パネル背景 (--panel) 上では card の hover 色と使い分ける */
 .detail-actions .btn-icon.card-action:hover:not(:disabled) {
   background: var(--panel-hover);
-}
-
-.detail-actions .detail-close {
-  margin-left: 8px;
 }
 
 .detail-body {

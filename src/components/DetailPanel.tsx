@@ -30,36 +30,9 @@ export function DetailPanel({
   return (
     <aside className={`detail-panel${besideChat ? " detail-panel-shifted" : ""}`}>
       <header className="detail-header">
-        <span className="detail-time">{relativeTime(article.fetched_at)}</span>
-        <div className="detail-actions">
-          <button
-            className={`btn-icon card-action${saved ? " btn-saved" : ""}`}
-            aria-label={saved ? "保存を解除" : "保存"}
-            title={saved ? "保存を解除 (自動整理の対象に戻る)" : "保存 (パージ対象外になる)"}
-            onClick={() => onSave(article.id)}
-          >
-            <BookmarkIcon filled={saved} />
-          </button>
-          <button
-            className={`btn-icon card-action${article.rating === 1 ? " btn-liked" : ""}`}
-            aria-label="良い記事"
-            title="良い記事 (キュレーションの学習に使われる)"
-            onClick={() => onLike(article.id)}
-          >
-            <ThumbsUpIcon filled={article.rating === 1} />
-          </button>
-          <button
-            className="btn-icon card-action btn-danger"
-            aria-label="興味なし"
-            title="興味なし (非表示 + 学習の負例になる)"
-            onClick={() => onDismiss(article.id)}
-          >
-            <ThumbsDownIcon />
-          </button>
-          <button className="btn-icon detail-close" onClick={onClose} aria-label="閉じる">
-            閉じる
-          </button>
-        </div>
+        <button className="btn-icon detail-close" onClick={onClose} aria-label="閉じる">
+          閉じる
+        </button>
       </header>
       <div className="detail-body">
         {showThumbnails && article.image_url && brokenImageId !== article.id && (
@@ -74,9 +47,33 @@ export function DetailPanel({
         {translated && <p className="detail-original">{article.title}</p>}
         <div className="detail-meta">
           <span>{article.source ?? "-"}</span>
-          {article.impact && (
-            <span className={`impact impact-${article.impact}`}>{article.impact}</span>
-          )}
+          <span className="detail-time">{relativeTime(article.fetched_at)}</span>
+          <div className="detail-actions">
+            <button
+              className={`btn-icon card-action${saved ? " btn-saved" : ""}`}
+              aria-label={saved ? "保存を解除" : "保存"}
+              title={saved ? "保存を解除 (自動整理の対象に戻る)" : "保存 (パージ対象外になる)"}
+              onClick={() => onSave(article.id)}
+            >
+              <BookmarkIcon filled={saved} />
+            </button>
+            <button
+              className={`btn-icon card-action${article.rating === 1 ? " btn-liked" : ""}`}
+              aria-label="良い記事"
+              title="良い記事 (キュレーションの学習に使われる)"
+              onClick={() => onLike(article.id)}
+            >
+              <ThumbsUpIcon filled={article.rating === 1} />
+            </button>
+            <button
+              className="btn-icon card-action btn-danger"
+              aria-label="興味なし"
+              title="興味なし (非表示 + 学習の負例になる)"
+              onClick={() => onDismiss(article.id)}
+            >
+              <ThumbsDownIcon />
+            </button>
+          </div>
         </div>
 
         {error && <p className="detail-error">生成に失敗しました: {error}</p>}

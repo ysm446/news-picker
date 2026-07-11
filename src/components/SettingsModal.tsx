@@ -19,7 +19,6 @@ const EMPTY: CategoryConfig = {
   feeds: [],
   poll_interval_sec: 600,
   jitter_sec: 60,
-  impact_axis: ["notable", "minor"],
   max_window: 30,
   summary_prompt: "",
   enabled: true,
@@ -33,7 +32,6 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
   const [queryText, setQueryText] = useState(initial ? initial.query_templates.join("\n") : "");
   // feeds は後から追加したフィールドなので、旧バックエンドの応答 (undefined) にも耐える
   const [feedsText, setFeedsText] = useState(initial ? (initial.feeds ?? []).join("\n") : "");
-  const [impactText, setImpactText] = useState(initial ? initial.impact_axis.join(", ") : "");
   const [isNew, setIsNew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -82,7 +80,6 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
     setEditing({ ...EMPTY });
     setQueryText("");
     setFeedsText("");
-    setImpactText(EMPTY.impact_axis.join(", "));
     setIsNew(true);
     setError(null);
   };
@@ -91,7 +88,6 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
     setEditing({ ...c });
     setQueryText(c.query_templates.join("\n"));
     setFeedsText((c.feeds ?? []).join("\n"));
-    setImpactText(c.impact_axis.join(", "));
     setIsNew(false);
     setError(null);
   };
@@ -100,11 +96,12 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
     if (!editing) return;
     setBusy(true);
     setError(null);
+    // impact_axis は UI からは編集不可の廃止項目だが、...editing 経由で
+    // 既存値をそのまま送り返す (yaml 上の値を勝手に消さない)
     const payload: CategoryConfig = {
       ...editing,
       query_templates: queryText.split("\n").map((s) => s.trim()).filter(Boolean),
       feeds: feedsText.split("\n").map((s) => s.trim()).filter(Boolean),
-      impact_axis: impactText.split(",").map((s) => s.trim()).filter(Boolean),
     };
     try {
       if (isNew) {
@@ -368,14 +365,6 @@ export function SettingsModal({ categories, initialEditId, onClose, onChanged }:
                   />
                 </label>
               </div>
-              <label className="form-row">
-                <span>impact の選択肢 (カンマ区切り)</span>
-                <input
-                  value={impactText}
-                  placeholder="bullish, neutral, bearish"
-                  onChange={(e) => setImpactText(e.target.value)}
-                />
-              </label>
               <label className="form-row">
                 <span>カテゴリ要約のプロンプト (任意)</span>
                 <textarea

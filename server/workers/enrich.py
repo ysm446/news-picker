@@ -1,7 +1,7 @@
 """EnrichWorker: 詳細生成 (spec §6.2)。二層カデンスの「高い側」。
 
 カードクリック時のみキューに積まれ、9B で {summary, key_points, entities,
-impact, tags} を JSON 生成する。enrich 済みならキャッシュを返すだけ。
+tags} を JSON 生成する。enrich 済みならキャッシュを返すだけ。
 
 処理: 本文取得 → 9B (thinking 無効 + 構造化出力) → DB 更新 → MD 書き出し
 → 埋め込み (Ruri) + FTS 反映 → status 'seen' → SSE article.enriched。
@@ -22,11 +22,10 @@ _SYSTEM_PROMPT = """あなたはニュース編集者。与えられた記事を
 - summary: 記事の核心を伝える日本語の一行要約 (60字以内)
 - key_points: 重要な事実 2〜5 個 (各 40字以内、日本語)
 - entities: 記事に登場する tickers (株式ティッカー)、companies (企業名)、models (AI モデル名)
-- impact: 記事がこのカテゴリに与える影響の分類
 - tags: 内容を表す短いタグ 1〜5 個"""
 
 
-def _result_schema(impact_axis: list[str]) -> dict:
+def _result_schema() -> dict:
     return {
         "type": "object",
         "properties": {
@@ -42,11 +41,10 @@ def _result_schema(impact_axis: list[str]) -> dict:
                 },
                 "required": ["tickers", "companies", "models"],
             },
-            "impact": {"type": "string", "enum": impact_axis},
             "tags": {"type": "array", "items": {"type": "string"},
                      "minItems": 1, "maxItems": 5},
         },
-        "required": ["summary", "key_points", "entities", "impact", "tags"],
+        "required": ["summary", "key_points", "entities", "tags"],
     }
 
 
@@ -79,7 +77,6 @@ class EnrichWorker:
                                 "summary": row["summary"],
                                 "key_points": json.loads(row["key_points"] or "[]"),
                                 "entities": json.loads(row["entities"] or "null"),
-                                "impact": row["impact"],
                                 "tags": json.loads(row["tags"] or "[]"),
                                 "enriched_at": row["enriched_at"],
                             },
@@ -105,7 +102,6 @@ class EnrichWorker:
                 return None  # キャッシュ済み。イベントも不要 (クライアントは GET で取得済み)
 
             category = self.categories.get(row["category"])
-            impact_axis = category.impact_axis if category else ["notable", "minor"]
 
             body = fetch_body(row["url"])
             source_text = body or row["snippet"] or ""
@@ -116,8 +112,7 @@ class EnrichWorker:
                     {
                         "role": "user",
                         "content": (
-                            f"カテゴリ: {category.label if category else row['category']}\n"
-                            f"impact の選択肢: {', '.join(impact_axis)}\n\n"
+                            f"カテゴリ: {category.label if category else row['category']}\n\n"
                             f"タイトル: {row['title']}\n"
                             f"ソース: {row['source'] or '不明'}\n\n"
                             f"本文:\n{source_text}"
@@ -125,7 +120,7 @@ class EnrichWorker:
                     },
                 ],
                 base_url=config.LLM_STANDARD_URL,
-                response_json_schema=_result_schema(impact_axis),
+                response_json_schema=_result_schema(),
                 enable_thinking=False,
                 # 1024 だと長い記事で JSON が途中で切れることがあり、新しめの
                 # llama.cpp はそれを出力パースエラー (500) にする。余裕を持たせる
@@ -140,7 +135,7 @@ class EnrichWorker:
                 summary=data["summary"],
                 key_points=json.dumps(data["key_points"], ensure_ascii=False),
                 entities=json.dumps(data["entities"], ensure_ascii=False),
-                impact=data.get("impact"),
+                impact=None,  # 廃止項目 (DB 列と既存 MD の互換のため引数だけ残す)
                 tags=json.dumps(data["tags"], ensure_ascii=False),
                 body=body,
             )

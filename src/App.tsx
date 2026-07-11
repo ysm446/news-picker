@@ -12,7 +12,6 @@ type ArticlesByCat = Record<string, Article[]>;
 
 interface Filters {
   range: "all" | "1" | "3" | "7";
-  impact: string;
   entity: string;
   savedOnly: boolean;
   hideNoise: boolean;
@@ -20,7 +19,6 @@ interface Filters {
 
 const NO_FILTERS: Filters = {
   range: "all",
-  impact: "",
   entity: "",
   savedOnly: false,
   hideNoise: true,
@@ -39,7 +37,6 @@ function applyFilters(list: Article[], f: Filters, noiseThreshold: number): Arti
       return false;
     }
     if (f.savedOnly && a.status !== "saved") return false;
-    if (f.impact && a.impact !== f.impact) return false;
     if (a.fetched_at < cutoff) return false;
     if (q) {
       const hit =
@@ -341,8 +338,6 @@ export default function App() {
       .catch(console.error);
   }, [loadAll]);
 
-  const impactOptions = [...new Set(categories.flatMap((c) => c.impact_axis))];
-
   return (
     <div className={`app${showStatus ? " statusbar-on" : ""}`}>
       <header className="topbar">
@@ -390,16 +385,6 @@ export default function App() {
           <option value="1">24時間</option>
           <option value="3">3日</option>
           <option value="7">1週間</option>
-        </select>
-        <select
-          className="filter-select"
-          value={filters.impact}
-          onChange={(e) => setFilters({ ...filters, impact: e.target.value })}
-        >
-          <option value="">impact: 全て</option>
-          {impactOptions.map((v) => (
-            <option key={v} value={v}>{v}</option>
-          ))}
         </select>
         <input
           className="filter-input"

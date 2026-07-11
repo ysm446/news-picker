@@ -7,7 +7,7 @@ export interface CategoryConfig {
   feeds: string[];
   poll_interval_sec: number;
   jitter_sec: number;
-  impact_axis: string[];
+  impact_axis?: string[]; // 廃止項目 (yaml 上の既存値を温存するため型だけ残す)
   max_window: number;
   summary_prompt: string;
   enabled: boolean;

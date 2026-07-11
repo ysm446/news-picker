@@ -50,7 +50,6 @@ export function ArticleCard({
             {article.relevance}
           </span>
         )}
-        {article.impact && <span className={`impact impact-${article.impact}`}>{article.impact}</span>}
         {article.status === "saved" && (
           <span className="badge-saved" title="保存済み">
             <BookmarkIcon size={11} filled />
