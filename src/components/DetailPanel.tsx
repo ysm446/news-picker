@@ -15,11 +15,12 @@ interface Props {
   onSave: (id: number) => void;
   onLike: (id: number) => void;
   onDismiss: (id: number) => void;
+  onRetry: () => void; // 生成失敗時の再試行 (再取得 → enrich が再キューされる)
 }
 
 export function DetailPanel({
   article, loading, error, translate, showThumbnails, besideChat,
-  onClose, onDeepDive, onSave, onLike, onDismiss,
+  onClose, onDeepDive, onSave, onLike, onDismiss, onRetry,
 }: Props) {
   // 取得失敗した記事の画像だけ隠す (記事を切り替えたらまた試す)
   const [brokenImageId, setBrokenImageId] = useState<number | null>(null);
@@ -76,7 +77,14 @@ export function DetailPanel({
           </div>
         </div>
 
-        {error && <p className="detail-error">生成に失敗しました: {error}</p>}
+        {error && (
+          <p className="detail-error">
+            生成に失敗しました: {error}
+            <button className="btn-icon detail-retry" onClick={onRetry}>
+              再試行
+            </button>
+          </p>
+        )}
 
         {/* 生成待ちの間も取得済みの情報 (検索時の抜粋) を先に読めるようにする */}
         {!enriched && article.snippet && (

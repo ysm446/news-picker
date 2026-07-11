@@ -511,6 +511,7 @@ export default function App() {
         onSave={onSave}
         onLike={onLike}
         onDismiss={onDismiss}
+        onRetry={() => selected && onOpen(selected)}
       />
       {chat !== null && (
         <ChatPanel

@@ -77,25 +77,37 @@ def chat(
             "json_schema": {"name": "result", "schema": response_json_schema},
         }
 
-    req = urllib.request.Request(
-        f"{base_url}/v1/chat/completions",
-        data=json.dumps(payload).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
-        method="POST",
-    )
-    for attempt in range(2):
+    # 新しめの llama.cpp (b98xx~) は、生成出力がチャットテンプレートの
+    # 期待形式にパースできないと 500 を返す (例: "does not match the
+    # expected peg-native format")。サンプリングの揺らぎによる確率的な
+    # 事象のため、リトライではサンプリングを堅めに倒し (temperature 0.2)、
+    # JSON が途中で切れるケースへの対策として出力上限も広げて引き直す
+    _RETRIES = 2
+    for attempt in range(_RETRIES + 1):
+        attempt_payload = payload
+        if attempt > 0:
+            attempt_payload = {
+                **payload,
+                "temperature": 0.2,
+                "max_tokens": max(max_tokens, 4096),
+            }
+        req = urllib.request.Request(
+            f"{base_url}/v1/chat/completions",
+            data=json.dumps(attempt_payload).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
         try:
             with urllib.request.urlopen(req, timeout=timeout) as res:
                 data = json.loads(res.read().decode("utf-8"))
             break
         except urllib.error.HTTPError as e:
             body = _http_error_body(e)
-            # 新しめの llama.cpp (b98xx~) は、生成出力がチャットテンプレートの
-            # 期待形式にパースできないと 500 を返す (例: "does not match the
-            # expected peg-native format")。サンプリングの揺らぎによる確率的な
-            # 事象なので、1回だけリトライする
-            if attempt == 0 and e.code == 500 and "does not match the expected" in body:
-                log.info("llama-server output parse error, retrying once: %s", body[:120])
+            if attempt < _RETRIES and e.code == 500 and "does not match the expected" in body:
+                log.info(
+                    "llama-server output parse error (attempt %d/%d), retrying: %s",
+                    attempt + 1, _RETRIES + 1, body[:120],
+                )
                 continue
             raise RuntimeError(f"llama-server {e.code}: {body or e.reason}") from e
 
