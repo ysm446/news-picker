@@ -92,9 +92,29 @@ def run_checks(conn, vault_dir: Path) -> None:
         vault.write_category_brief("gpu", "今日の GPU 動向まとめ。", 1, now, vault_dir=vault_dir)
 
         # --- 5. rebuild: DB を消して vault から全再構築 ------------------
+        # 保存状態の MD 書き戻しが rebuild を跨いで保持されるか
+        store.set_status(conn, a1, "saved")
+        vault.sync_article_md(store.get_article(conn, a1), vault_dir=vault_dir)
+
+        # tombstone 済み記事の MD が残っていても rebuild で復活しないか
+        # (実運用の hide は MD も消すが、旧データに MD が残るケースの防御)
+        a3 = store.insert_article(
+            conn, category="gpu", title="Hidden with md", url="https://example.com/hidden-md",
+        )
+        md3 = vault.write_article_md(dict(store.get_article(conn, a3)), vault_dir=vault_dir)
+        assert (vault_dir / md3).exists()
+        h3 = store.hide_article(conn, a3)
+        vault.append_tombstone(h3, "deleted", vault_dir=vault_dir)
+
         before = dict(store.get_article(conn, a1))
         stats = vault.rebuild_index(conn, vault_dir=vault_dir)
-        assert stats == {"articles": 1, "briefs": 1, "tombstones": 1}, stats
+        assert stats == {
+            "articles": 1,
+            "briefs": 1,
+            "tombstones": 2,
+            "skipped_tombstoned": 1,
+            "embeddings": 1,
+        }, stats
 
         after = store.get_article(conn, a1)
         assert after is not None, "rebuild 後に記事が消えた"
@@ -102,6 +122,14 @@ def run_checks(conn, vault_dir: Path) -> None:
         for key in ("category", "title", "url", "url_hash", "summary", "impact",
                     "tags", "entities", "key_points", "body", "status"):
             assert after[key] == before[key], f"rebuild 不一致 {key}"
+        assert after["status"] == "saved", "保存状態が rebuild で巻き戻った"
+        assert store.get_article(conn, a3) is None, "tombstone 済み記事が rebuild で復活した"
+
+        # 埋め込み (vec_articles) も rebuild で復元されている
+        vec = conn.execute(
+            "SELECT article_id FROM vec_articles WHERE article_id = ?", (a1,)
+        ).fetchone()
+        assert vec is not None, "rebuild 後に埋め込みが失われた"
 
         # rebuild 後も tombstone による復活防止が効く
         revived = store.insert_article(

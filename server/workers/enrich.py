@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import time
 
 from .. import config, llm, store, vault
 from ..fetch_page import fetch_body
@@ -54,15 +55,27 @@ class EnrichWorker:
         self.categories = {c.id: c for c in categories}
         self.queue: asyncio.Queue[int] = asyncio.Queue()
         self._pending: set[int] = set()
+        self._loop: asyncio.AbstractEventLoop | None = None
 
     def enqueue(self, article_id: int) -> bool:
         if article_id in self._pending:
             return False
         self._pending.add(article_id)
-        self.queue.put_nowait(article_id)
+        # 同期エンドポイント (スレッドプール) から呼ばれるため、ループ外からは
+        # call_soon_threadsafe で委譲する (asyncio.Queue はスレッドセーフではない)
+        loop = self._loop
+        try:
+            running = asyncio.get_running_loop()
+        except RuntimeError:
+            running = None
+        if loop is not None and running is not loop:
+            loop.call_soon_threadsafe(self.queue.put_nowait, article_id)
+        else:
+            self.queue.put_nowait(article_id)
         return True
 
     async def run(self) -> None:
+        self._loop = asyncio.get_running_loop()
         while True:
             article_id = await self.queue.get()
             try:
@@ -128,33 +141,50 @@ class EnrichWorker:
                 timeout=180,
             )
             data = json.loads(result["content"])
+            summary = data["summary"]
+
+            # 埋め込みを先に計算する (ここで失敗しても DB は未 enrich のままなので
+            # 再クリックで再試行できる。DB 確定後の失敗だと自己修復不能になる)
+            from .. import embed  # 遅延 import (モデルロードが重い)
+
+            embedding_text = "\n".join(
+                filter(None, [row["title"], summary, (body or "")[:2000]])
+            )
+            vector = embed.embed_document(embedding_text)
+
+            # MD (一次データ) を DB より先に書く。直後に落ちても DB は未 enrich の
+            # ままで再実行が同じ MD を上書きして自己修復する。逆順だと
+            # 「enrich 済みだが MD なし」で確定し rebuild で結果が消える
+            enriched_at = int(time.time())
+            fresh = dict(row)
+            fresh.update(
+                summary=summary,
+                key_points=json.dumps(data["key_points"], ensure_ascii=False),
+                entities=json.dumps(data["entities"], ensure_ascii=False),
+                impact=None,  # 廃止項目 (DB 列と既存 MD の互換のため残置)
+                tags=json.dumps(data["tags"], ensure_ascii=False),
+                body=body,
+                enriched_at=enriched_at,
+                status="seen" if row["status"] == "new" else row["status"],
+            )
+            md_rel = vault.write_article_md(fresh)
 
             store.update_enrichment(
                 conn,
                 article_id,
-                summary=data["summary"],
-                key_points=json.dumps(data["key_points"], ensure_ascii=False),
-                entities=json.dumps(data["entities"], ensure_ascii=False),
-                impact=None,  # 廃止項目 (DB 列と既存 MD の互換のため引数だけ残す)
-                tags=json.dumps(data["tags"], ensure_ascii=False),
+                summary=summary,
+                key_points=fresh["key_points"],
+                entities=fresh["entities"],
+                impact=None,
+                tags=fresh["tags"],
                 body=body,
+                enriched_at=enriched_at,
             )
-
-            # MD 書き出し (一次データ) → md_path 記録
-            fresh = dict(store.get_article(conn, article_id))
-            md_rel = vault.write_article_md(fresh)
             store.set_md_path(conn, article_id, md_rel.as_posix())
+            store.update_fts(conn, article_id, row["title"], summary, body)
+            store.upsert_embedding(conn, article_id, vector)
 
-            # 索引反映: FTS + 埋め込み (タイトル + 要約 + 本文先頭)
-            store.update_fts(conn, article_id, fresh["title"], fresh["summary"], fresh["body"])
-            from .. import embed  # 遅延 import (モデルロードが重い)
-
-            embedding_text = "\n".join(
-                filter(None, [fresh["title"], fresh["summary"], (fresh["body"] or "")[:2000]])
-            )
-            store.upsert_embedding(conn, article_id, embed.embed_document(embedding_text))
-
-            log.info("enrich[%d] done: %s", article_id, data["summary"][:50])
+            log.info("enrich[%d] done: %s", article_id, summary[:50])
             return store.get_article(conn, article_id)
         finally:
             conn.close()

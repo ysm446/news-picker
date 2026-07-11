@@ -514,6 +514,7 @@ export default function App() {
       />
       {chat !== null && (
         <ChatPanel
+          key={chat.articleId ?? "vault"} // 深堀り対象の切替で会話履歴をリセットする
           articleId={chat.articleId}
           articleTitle={chat.title}
           onClose={() => setChat(null)}

@@ -11,6 +11,7 @@ from __future__ import annotations
 
 import io
 import logging
+import urllib.parse
 import urllib.request
 from pathlib import Path
 
@@ -39,6 +40,11 @@ def get_or_fetch(article_id: int, image_url: str) -> Path | None:
     path = thumb_path(article_id)
     if path.exists():
         return path
+    # image_url はフィード/検索結果由来の非信頼データ。http(s) 以外
+    # (file:// でのローカル読み出し、UNC パス等) は拒否する
+    if urllib.parse.urlsplit(image_url).scheme not in ("http", "https"):
+        log.info("thumb[%d] non-http url rejected: %s", article_id, image_url[:100])
+        return None
     try:
         req = urllib.request.Request(image_url, headers=_HEADERS)
         with urllib.request.urlopen(req, timeout=_TIMEOUT_SEC) as res:

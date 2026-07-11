@@ -4,7 +4,7 @@
 //   (自分で起動した子プロセスだけを終了時に kill する)
 // - ウィンドウを閉じてもトレイに常駐し、取り込みは裏で動き続ける
 const { app, BrowserWindow, Menu, Tray, nativeImage, screen, shell } = require("electron");
-const { spawn } = require("child_process");
+const { spawn, spawnSync } = require("child_process");
 const path = require("path");
 const fs = require("fs");
 const http = require("http");
@@ -132,9 +132,21 @@ function createWindow() {
     }
   });
 
+  // 記事リンクは Web 由来の非信頼データなので、http(s) 以外のプロトコル
+  // (file:// や ms-msdt: 等の任意ハンドラ起動) は OS に渡さない
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-    shell.openExternal(url);
+    if (/^https?:$/.test(new URL(url).protocol)) {
+      shell.openExternal(url);
+    }
     return { action: "deny" };
+  });
+
+  // ウィンドウ自体の外部サイトへの遷移は禁止 (D&D されたリンク等)。
+  // アプリ自身 (vite dev / dist の file://) のリロードだけ許可する
+  mainWindow.webContents.on("will-navigate", (event, url) => {
+    if (!url.startsWith(DEV_URL) && !url.startsWith("file:")) {
+      event.preventDefault();
+    }
   });
 
   // 閉じる = トレイへ (終了はトレイメニューから)
@@ -190,10 +202,10 @@ if (!app.requestSingleInstanceLock()) {
   quitting = true;
   app.quit();
 } else {
-  // 2回目の起動が試みられたら、トレイ格納中でもウィンドウを出す
-  app.on("second-instance", showWindow);
-
   app.whenReady().then(() => {
+    // 2回目の起動が試みられたら、トレイ格納中でもウィンドウを出す
+    // (ready 前に登録すると、ready 前の二重起動で createWindow が落ちる)
+    app.on("second-instance", showWindow);
     ensureBackendStack();
     createWindow();
     createTray();
@@ -207,7 +219,15 @@ app.on("before-quit", () => {
   quitting = true;
   for (const child of spawnedChildren) {
     try {
-      child.kill();
+      if (child.exitCode !== null || !child.pid) continue; // 正常終了済み
+      if (process.platform === "win32") {
+        // /admin/shutdown がタイムアウトした異常系。child.kill() だと Windows では
+        // 孫プロセス (uvicorn が起動した llama-server) が VRAM を掴んだまま残るため、
+        // プロセスツリーごと止める
+        spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true });
+      } else {
+        child.kill();
+      }
     } catch {
       // already dead
     }

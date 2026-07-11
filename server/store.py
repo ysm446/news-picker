@@ -313,14 +313,23 @@ def update_fts(
         )
 
 
-def upsert_embedding(conn: sqlite3.Connection, article_id: int, vector) -> None:
+def upsert_embedding(
+    conn: sqlite3.Connection, article_id: int, vector, commit: bool = True
+) -> None:
     blob = struct.pack(f"{len(vector)}f", *vector)
-    with conn:
+
+    def _write() -> None:
         conn.execute("DELETE FROM vec_articles WHERE article_id = ?", (article_id,))
         conn.execute(
             "INSERT INTO vec_articles (article_id, embedding) VALUES (?, ?)",
             (article_id, blob),
         )
+
+    if commit:
+        with conn:
+            _write()
+    else:
+        _write()
 
 
 # ---------------------------------------------------------------- 自動整理
@@ -349,17 +358,23 @@ def delete_article_index(conn: sqlite3.Connection, article_id: int) -> None:
 # ---------------------------------------------------------------- rebuild 用
 
 def clear_index(conn: sqlite3.Connection) -> None:
-    """全派生データを消す。vault からの rebuild 直前にのみ使う。"""
-    with conn:
-        conn.execute("DELETE FROM articles")
-        conn.execute("DELETE FROM tombstones")
-        conn.execute("DELETE FROM category_briefs")
-        conn.execute("DELETE FROM fts_articles")
-        conn.execute("DELETE FROM vec_articles")
+    """全派生データを消す。vault からの rebuild 直前にのみ使う。
+
+    コミットしない: rebuild_index() が全体を1トランザクションで包み、
+    途中失敗時に「全削除だけ確定した半壊 DB」にならないようにする。
+    """
+    conn.execute("DELETE FROM articles")
+    conn.execute("DELETE FROM tombstones")
+    conn.execute("DELETE FROM category_briefs")
+    conn.execute("DELETE FROM fts_articles")
+    conn.execute("DELETE FROM vec_articles")
 
 
 def insert_full_article(conn: sqlite3.Connection, row: dict) -> None:
-    """rebuild 用: MD frontmatter 由来の全カラムを id ごと復元する。"""
+    """rebuild 用: MD frontmatter 由来の全カラムを id ごと復元する。
+
+    コミットしない (clear_index と同じく rebuild のトランザクション内で使う)。
+    """
     cols = (
         "id", "category", "title", "url", "url_hash", "source", "snippet",
         "image_url", "published_at", "fetched_at", "status", "summary",
@@ -367,15 +382,14 @@ def insert_full_article(conn: sqlite3.Connection, row: dict) -> None:
         "enriched_at", "relevance", "title_ja", "rating",
     )
     values = [row.get(c) for c in cols]
-    with conn:
-        conn.execute(
-            f"INSERT INTO articles ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
-            values,
-        )
-        conn.execute(
-            "INSERT INTO fts_articles (article_id, title, summary, body) VALUES (?, ?, ?, ?)",
-            (row["id"], row.get("title", ""), row.get("summary") or "", row.get("body") or ""),
-        )
+    conn.execute(
+        f"INSERT INTO articles ({', '.join(cols)}) VALUES ({', '.join('?' * len(cols))})",
+        values,
+    )
+    conn.execute(
+        "INSERT INTO fts_articles (article_id, title, summary, body) VALUES (?, ?, ?, ?)",
+        (row["id"], row.get("title", ""), row.get("summary") or "", row.get("body") or ""),
+    )
 
 
 def upsert_category_brief(
@@ -385,15 +399,18 @@ def upsert_category_brief(
     article_count: int,
     updated_at: int,
     md_path: str | None = None,
+    commit: bool = True,
 ) -> None:
-    with conn:
-        conn.execute(
-            """INSERT INTO category_briefs (category, brief, article_count, updated_at, md_path)
-               VALUES (?, ?, ?, ?, ?)
-               ON CONFLICT(category) DO UPDATE SET
-                 brief = excluded.brief,
-                 article_count = excluded.article_count,
-                 updated_at = excluded.updated_at,
-                 md_path = excluded.md_path""",
-            (category, brief, article_count, updated_at, md_path),
-        )
+    sql = """INSERT INTO category_briefs (category, brief, article_count, updated_at, md_path)
+             VALUES (?, ?, ?, ?, ?)
+             ON CONFLICT(category) DO UPDATE SET
+               brief = excluded.brief,
+               article_count = excluded.article_count,
+               updated_at = excluded.updated_at,
+               md_path = excluded.md_path"""
+    args = (category, brief, article_count, updated_at, md_path)
+    if commit:
+        with conn:
+            conn.execute(sql, args)
+    else:
+        conn.execute(sql, args)

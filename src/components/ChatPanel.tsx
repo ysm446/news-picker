@@ -21,10 +21,14 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
   const thinkingRef = useRef<string>("");
   const activityRef = useRef<string[]>([]);
   const streamRef = useRef("");
+  const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [turns, activity, streamText]);
+
+  // パネルを閉じたら生成中のストリームを中断する (放置すると LLM を占有し続ける)
+  useEffect(() => () => abortRef.current?.abort(), []);
 
   const send = useCallback(() => {
     const text = input.trim();
@@ -91,13 +95,21 @@ export function ChatPanel({ articleId, articleTitle, onClose }: Props) {
       }
     };
 
+    const ac = new AbortController();
+    abortRef.current = ac;
     chatStream(
       { messages: history.map(({ role, content }) => ({ role, content })), article_id: articleId },
       onEvent,
-    ).catch((e) => {
-      setError(String(e));
-      setBusy(false);
-    });
+      ac.signal,
+    )
+      .catch((e) => {
+        if (!ac.signal.aborted) setError(String(e));
+      })
+      .finally(() => {
+        // chat.done を受け取れないままストリームが閉じた場合 (バックエンドや
+        // llama-server のクラッシュ) でも busy を必ず解除する
+        setBusy(false);
+      });
   }, [input, busy, turns, articleId]);
 
   return (

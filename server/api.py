@@ -80,6 +80,7 @@ def _article_to_dict(row) -> dict:
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global enricher, briefer
+    bus.attach_loop(asyncio.get_running_loop())  # スレッドプールからの publish 用
     categories = config.load_categories()
     enricher = EnrichWorker(bus, categories)
     briefer = BriefWorker(bus, categories)
@@ -342,8 +343,14 @@ def save_article(article_id: int) -> dict:
         else:
             status = "saved"
         store.set_status(conn, article_id, status)
+        # MD へ書き戻す (rebuild で保存状態が巻き戻り、自動整理に消されないように)
+        vault.sync_article_md(store.get_article(conn, article_id))
     finally:
         conn.close()
+    # 保存時、未 enrich なら詳細生成をキューに積む。enrich 完了で MD が
+    # vault に書かれ「保存 = vault に確実に書き残す」セマンティクスになる
+    if status == "saved" and not row["enriched_at"] and enricher is not None:
+        enricher.enqueue(article_id)
     bus.publish({"type": "article.status_changed", "id": article_id, "status": status})
     return {"id": article_id, "status": status}
 
@@ -358,6 +365,7 @@ def like_article(article_id: int) -> dict:
             raise HTTPException(404, f"article {article_id} not found")
         rating = None if row["rating"] == 1 else 1
         store.set_rating(conn, article_id, rating)
+        vault.sync_article_md(store.get_article(conn, article_id))  # rebuild で評価が消えないように
     finally:
         conn.close()
     bus.publish({"type": "article.rated", "id": article_id, "rating": rating})
@@ -377,6 +385,7 @@ def dismiss_article(article_id: int) -> dict:
     finally:
         conn.close()
     vault.append_tombstone(url_hash, "deleted")
+    vault.delete_article_md(row["md_path"])  # 残すと rebuild で復活する
     thumbs.delete(article_id)
     bus.publish({"type": "article.status_changed", "id": article_id, "status": "hidden"})
     return {"id": article_id, "rating": -1, "status": "hidden"}
@@ -386,12 +395,14 @@ def dismiss_article(article_id: int) -> dict:
 def hide_article(article_id: int) -> dict:
     conn = store.connect()
     try:
+        row = store.get_article(conn, article_id)
         url_hash = store.hide_article(conn, article_id)
     finally:
         conn.close()
     if url_hash is None:
         raise HTTPException(404, f"article {article_id} not found")
     vault.append_tombstone(url_hash, "deleted")  # rebuild 後も復活しないよう vault 側にも記録
+    vault.delete_article_md(row["md_path"])  # 残すと rebuild で復活する
     thumbs.delete(article_id)
     bus.publish({"type": "article.status_changed", "id": article_id, "status": "hidden"})
     return {"id": article_id, "status": "hidden"}

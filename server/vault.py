@@ -68,12 +68,22 @@ def _load_json_field(value) -> list | dict | None:
 
 
 def write_article_md(article: dict, vault_dir: Path | None = None) -> Path:
-    """DB 行 (dict) から記事 MD を書き出し、vault 相対の md_path を返す。"""
+    """DB 行 (dict) から記事 MD を書き出し、vault 相対の md_path を返す。
+
+    md_path が既にあればその場所へ上書きする (保存/評価などの状態変更を
+    MD へ書き戻す用途。「MD が真実の源」を rebuild 後も保つため)。
+    """
     vault_dir = Path(vault_dir or config.VAULT_DIR)
-    date_dir = datetime.fromtimestamp(
-        article["fetched_at"], tz=timezone.utc
-    ).strftime("%Y-%m-%d")
-    rel = Path(article["category"]) / date_dir / f"{_slugify(article['title'])}-{article['id']}.md"
+    if article.get("md_path"):
+        rel = Path(article["md_path"])
+    else:
+        date_dir = datetime.fromtimestamp(
+            article["fetched_at"], tz=timezone.utc
+        ).strftime("%Y-%m-%d")
+        rel = (
+            Path(article["category"]) / date_dir
+            / f"{_slugify(article['title'])}-{article['id']}.md"
+        )
 
     meta = {
         "id": article["id"],
@@ -108,6 +118,25 @@ def write_article_md(article: dict, vault_dir: Path | None = None) -> Path:
 
     atomic_write_text(vault_dir / rel, "\n".join(lines))
     return rel
+
+
+def sync_article_md(row, vault_dir: Path | None = None) -> None:
+    """DB の記事行を MD へ書き戻す (MD が無い = 未 enrich の記事は何もしない)。
+
+    保存・評価などの状態変更後に呼ぶ。これを怠ると rebuild で古い状態に
+    巻き戻り、保存済み記事が自動整理の対象に戻ってしまう。
+    """
+    if row is None or not row["md_path"]:
+        return
+    write_article_md(dict(row), vault_dir)
+
+
+def delete_article_md(md_path: str | None, vault_dir: Path | None = None) -> None:
+    """記事 MD を削除する (非表示/パージと連動。残すと rebuild で復活する)。"""
+    if not md_path:
+        return
+    vault_dir = Path(vault_dir or config.VAULT_DIR)
+    (vault_dir / md_path).unlink(missing_ok=True)
 
 
 def parse_article_md(path: Path) -> dict:
@@ -211,36 +240,78 @@ def write_category_brief(
 def rebuild_index(conn: sqlite3.Connection, vault_dir: Path | None = None) -> dict:
     """SQLite 索引を vault から全再構築する (必須要件)。
 
-    埋め込み (vec_articles) はここでは復元しない。EnrichWorker/再埋め込み
-    バッチが埋め直す (フェーズ3)。
+    - tombstone に載っている記事 MD は復元しない (非表示/削除済みの復活防止)
+    - 全体を1トランザクション (BEGIN IMMEDIATE) で包む: 他ワーカーの書き込みを
+      ブロックして ID 衝突を防ぎ、途中失敗時は rollback で元の索引に戻す
+    - 埋め込み (vec_articles) も復元する (enrich 済み記事のみ。EnrichWorker は
+      enrich 済み記事を再処理しないため、ここで埋め直さないと永久に失われる)
     """
     vault_dir = Path(vault_dir or config.VAULT_DIR)
-    store.clear_index(conn)
 
-    articles = briefs = 0
+    # ---- 読み取りと埋め込み計算はトランザクションの外で済ませる (ロック時間短縮)
+    tombstones = load_tombstones(vault_dir)
+    dead = {t["url_hash"] for t in tombstones}
+
+    rows: list[dict] = []
+    brief_rows: list[dict] = []
+    skipped = 0
     if vault_dir.exists():
         for md in sorted(vault_dir.glob("*/*/*.md")):
             if md.name.startswith("_"):
                 continue
             row = parse_article_md(md)
+            if row["url_hash"] in dead:
+                skipped += 1
+                continue
             row["md_path"] = md.relative_to(vault_dir).as_posix()
-            store.insert_full_article(conn, row)
-            articles += 1
+            rows.append(row)
 
         for brief_md in sorted(vault_dir.glob(f"*/{_BRIEF_FILE}")):
             meta, body = _split_frontmatter(brief_md.read_text(encoding="utf-8"))
-            store.upsert_category_brief(
-                conn,
-                category=meta["category"],
-                brief=body.strip(),
-                article_count=int(meta.get("article_count", 0)),
-                updated_at=iso_to_epoch(meta.get("updated_at")) or int(time.time()),
-                md_path=brief_md.relative_to(vault_dir).as_posix(),
+            brief_rows.append(
+                {
+                    "category": meta["category"],
+                    "brief": body.strip(),
+                    "article_count": int(meta.get("article_count", 0)),
+                    "updated_at": iso_to_epoch(meta.get("updated_at")) or int(time.time()),
+                    "md_path": brief_md.relative_to(vault_dir).as_posix(),
+                }
             )
-            briefs += 1
 
-    tombstones = load_tombstones(vault_dir)
-    for t in tombstones:
-        store.add_tombstone(conn, t["url_hash"], t["reason"], t.get("created_at"))
+    embeddings: dict[int, tuple] = {}
+    enriched_rows = [r for r in rows if r.get("enriched_at")]
+    if enriched_rows:
+        from . import embed  # 遅延 import (モデルロードが重い)
 
-    return {"articles": articles, "briefs": briefs, "tombstones": len(tombstones)}
+        for row in enriched_rows:
+            text = "\n".join(
+                filter(None, [row["title"], row.get("summary"), (row.get("body") or "")[:2000]])
+            )
+            embeddings[row["id"]] = embed.embed_document(text)
+
+    # ---- ここから1トランザクション。IMMEDIATE で書き込みロックを先取りし、
+    # 稼働中の ingest/enrich と衝突しないようにする
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        store.clear_index(conn)
+        for t in tombstones:
+            store.add_tombstone(conn, t["url_hash"], t["reason"], t.get("created_at"), commit=False)
+        for row in rows:
+            store.insert_full_article(conn, row)
+            vec = embeddings.get(row["id"])
+            if vec is not None:
+                store.upsert_embedding(conn, row["id"], vec, commit=False)
+        for b in brief_rows:
+            store.upsert_category_brief(conn, **b, commit=False)
+        conn.commit()
+    except BaseException:
+        conn.rollback()
+        raise
+
+    return {
+        "articles": len(rows),
+        "briefs": len(brief_rows),
+        "tombstones": len(tombstones),
+        "skipped_tombstoned": skipped,
+        "embeddings": len(embeddings),
+    }
